@@ -9,40 +9,41 @@ public class CreateSalonOwnerRequestDtoValidator : AbstractValidator<CreateSalon
     {
         RuleFor(x => x.Name)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Nome é obrigatório.")
+            .NotEmpty().WithMessage("Nome e obrigatorio.")
             .Must(name => !string.IsNullOrWhiteSpace(name))
-            .WithMessage("Nome não pode conter apenas espaços em branco.");
+            .WithMessage("Nome nao pode conter apenas espacos em branco.");
 
         RuleFor(x => x.Email)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Email é obrigatório.")
+            .NotEmpty().WithMessage("Email e obrigatorio.")
             .Must(email => !string.IsNullOrWhiteSpace(email))
-            .WithMessage("Email não pode conter apenas espaços em branco.")
-            .EmailAddress().WithMessage("Email inválido.");
+            .WithMessage("Email nao pode conter apenas espacos em branco.")
+            .EmailAddress().WithMessage("Email invalido.");
 
         RuleFor(x => x.Password)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Senha é obrigatória.")
+            .NotEmpty().WithMessage("Senha e obrigatoria.")
             .Must(password => !string.IsNullOrWhiteSpace(password))
-            .WithMessage("Senha não pode conter apenas espaços em branco.")
-            .MinimumLength(6).WithMessage("Senha deve conter no mínimo 6 caracteres.");
+            .WithMessage("Senha nao pode conter apenas espacos em branco.")
+            .Matches(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$")
+            .WithMessage("Senha deve ter ao menos 8 caracteres, maiuscula, minuscula, numero e simbolo.");
 
         RuleFor(x => x.SalonName)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Nome do salão é obrigatório.")
+            .NotEmpty().WithMessage("Nome do salao e obrigatorio.")
             .Must(name => !string.IsNullOrWhiteSpace(name))
-            .WithMessage("Nome do salão não pode conter apenas espaços em branco.");
+            .WithMessage("Nome do salao nao pode conter apenas espacos em branco.");
 
         RuleFor(x => x.SalonDocument)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Documento do salão é obrigatório.")
+            .NotEmpty().WithMessage("Documento do salao e obrigatorio.")
             .Must(document => !string.IsNullOrWhiteSpace(document))
-            .WithMessage("Documento do salão não pode conter apenas espaços em branco.");
+            .WithMessage("Documento do salao nao pode conter apenas espacos em branco.");
 
         RuleFor(x => x.SalonAddress)
             .Cascade(CascadeMode.Stop)
-            .NotEmpty().WithMessage("Endereço do salão é obrigatório.")
+            .NotEmpty().WithMessage("Endereco do salao e obrigatorio.")
             .Must(address => !string.IsNullOrWhiteSpace(address))
-            .WithMessage("Endereço do salão não pode conter apenas espaços em branco.");
+            .WithMessage("Endereco do salao nao pode conter apenas espacos em branco.");
     }
 }

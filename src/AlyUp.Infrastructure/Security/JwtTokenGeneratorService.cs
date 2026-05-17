@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using AlyUp.Application.Interfaces;
+using AlyUp.Application.Security;
 using AlyUp.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -19,21 +20,24 @@ public class JwtTokenGeneratorService : IJwtTokenGenerator
 
     public string GenerateToken(User user)
     {
+        var lifetimeInMinutes = _configuration.GetValue<int?>("Jwt:AccessTokenMinutes") ?? 60;
+        if (lifetimeInMinutes <= 0)
+        {
+            throw new InvalidOperationException("JWT access token lifetime must be greater than zero.");
+        }
+
         var claims = new List<Claim>
         {
-            new("UserId", user.Id.ToString()),
-            new("Name", user.Name),
-            new("Email", user.Email),
-            new("Role", user.Role.ToString()),
+            new(AppClaimTypes.UserId, user.Id.ToString()),
+            new(AppClaimTypes.Role, user.Role.ToString()),
+            new(AppClaimTypes.IsMaster, user.IsMaster.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.Name),
-            new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role.ToString())
         };
 
         if (user.SalonId.HasValue)
         {
-            claims.Add(new Claim("SalonId", user.SalonId.Value.ToString()));
+            claims.Add(new Claim(AppClaimTypes.SalonId, user.SalonId.Value.ToString()));
         }
 
         var keyString = _configuration["Jwt:Key"]
@@ -47,7 +51,7 @@ public class JwtTokenGeneratorService : IJwtTokenGenerator
             audience: _configuration["Jwt:Audience"]
                 ?? throw new InvalidOperationException("JWT audience not configured."),
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
+            expires: DateTime.UtcNow.AddMinutes(lifetimeInMinutes),
             signingCredentials: creds
         );
 

@@ -1,13 +1,14 @@
+using AlyUp.Application.DTOs.Auth;
+using AlyUp.Application.Security;
+using AlyUp.Application.UseCases.Admin;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AlyUp.Application.DTOs.Auth;
-using AlyUp.Application.UseCases.Admin;
 
 namespace AlyUp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AppPolicies.RequireMaster)]
 public class AdminController : ControllerBase
 {
     private readonly CreateSalonOwnerUseCase _createSalonOwnerUseCase;
@@ -18,10 +19,8 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("registerSalonOwner")]
-    public async Task<IActionResult> CreateSalonOwner(
-        [FromBody] CreateSalonOwnerRequestDto request)
+    public async Task<IActionResult> CreateSalonOwner([FromBody] CreateSalonOwnerRequestDto request)
     {
-
         var result = await _createSalonOwnerUseCase.ExecuteAsync(request);
 
         if (!result.IsSuccess)
@@ -29,9 +28,9 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = result.Error });
         }
 
-        return Created("", new
+        return Created(string.Empty, new
         {
-            message = "Dono de salão e salão criados com sucesso.",
+            message = "Dono de salao e salao criados com sucesso.",
             id = result.Value
         });
     }

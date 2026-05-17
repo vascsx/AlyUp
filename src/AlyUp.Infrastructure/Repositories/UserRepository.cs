@@ -1,7 +1,9 @@
-using AlyUp.Domain.Entities;
 using AlyUp.Application.Interfaces;
+using AlyUp.Domain.Entities;
+using AlyUp.Domain.Exceptions;
 using AlyUp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace AlyUp.Infrastructure.Repositories;
 
@@ -22,17 +24,30 @@ public class UserRepository : IUserRepository
 
     public async Task CreateAsync(User user)
     {
-        await _context.Users.AddAsync(user);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new EmailAlreadyExistsException(user.Email);
+        }
     }
 
     public async Task UpdateAsync(User user)
     {
-        _context.Users.Update(user);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            throw new EmailAlreadyExistsException(user.Email);
+        }
     }
 
     public async Task<bool> ExistsByEmailAsync(string email) =>
         await _context.Users.AnyAsync(u => u.Email == email);
-
 }

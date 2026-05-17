@@ -18,6 +18,10 @@ public class CreateProfessionalRequestDtoValidator : AbstractValidator<CreatePro
         RuleFor(x => x.Password)
             .NotEmpty()
             .Matches(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$")
-            .WithMessage("Senha deve ter ao menos 8 caracteres, maiúscula, minúscula, número e símbolo.");
+            .WithMessage("Senha deve ter ao menos 8 caracteres, maiuscula, minuscula, numero e simbolo.");
+
+        RuleFor(x => x.SalonId)
+            .NotEqual(Guid.Empty)
+            .When(x => x.SalonId.HasValue);
     }
 }

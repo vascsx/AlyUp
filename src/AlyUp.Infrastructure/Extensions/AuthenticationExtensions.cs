@@ -26,6 +26,7 @@ public static class AuthenticationExtensions
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
+                ClockSkew = TimeSpan.FromMinutes(1),
                 ValidIssuer = configuration["Jwt:Issuer"]
                     ?? throw new InvalidOperationException("JWT issuer not configured."),
                 ValidAudience = configuration["Jwt:Audience"]

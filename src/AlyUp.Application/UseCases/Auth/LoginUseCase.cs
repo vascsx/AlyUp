@@ -1,7 +1,6 @@
 using AlyUp.Application.Common;
 using AlyUp.Application.DTOs.Auth;
 using AlyUp.Application.Interfaces;
-using AlyUp.Domain.Exceptions;
 
 namespace AlyUp.Application.UseCases.Auth;
 
@@ -10,28 +9,31 @@ public class LoginUseCase
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IInputNormalizer _inputNormalizer;
 
     public LoginUseCase(
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
-        IJwtTokenGenerator jwtTokenGenerator)
+        IJwtTokenGenerator jwtTokenGenerator,
+        IInputNormalizer inputNormalizer)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _inputNormalizer = inputNormalizer;
     }
 
     public async Task<Result<LoginResponseDto>> ExecuteAsync(LoginRequestDto request)
     {
-        var email = request.Email.Trim().ToLower();
+        var email = _inputNormalizer.NormalizeEmail(request.Email);
 
         var user = await _userRepository.GetByEmailAsync(email);
 
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
-            return Result<LoginResponseDto>.Failure("Email ou senha inválidos.");
+            return Result<LoginResponseDto>.Failure("Email ou senha invalidos.");
 
         if (!user.IsActive)
-            return Result<LoginResponseDto>.Failure("Usuário inativo.");
+            return Result<LoginResponseDto>.Failure("Email ou senha invalidos.");
 
         var token = _jwtTokenGenerator.GenerateToken(user);
 

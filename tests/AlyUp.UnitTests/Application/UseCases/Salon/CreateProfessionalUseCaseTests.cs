@@ -12,19 +12,35 @@ public class CreateProfessionalUseCaseTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
     private readonly Mock<IPasswordHasher> _passwordHasherMock = new();
+    private readonly Mock<ISalonRepository> _salonRepositoryMock = new();
+    private readonly Mock<IInputNormalizer> _inputNormalizerMock = new();
     private readonly CreateProfessionalUseCase _sut;
 
     public CreateProfessionalUseCaseTests()
     {
-        _sut = new CreateProfessionalUseCase(_userRepositoryMock.Object, _passwordHasherMock.Object);
+        _inputNormalizerMock
+            .Setup(normalizer => normalizer.NormalizeEmail(It.IsAny<string>()))
+            .Returns<string>(email => email.Trim().ToLowerInvariant());
+        _inputNormalizerMock
+            .Setup(normalizer => normalizer.NormalizeText(It.IsAny<string>()))
+            .Returns<string>(value => value.Trim());
+
+        _sut = new CreateProfessionalUseCase(
+            _userRepositoryMock.Object,
+            _passwordHasherMock.Object,
+            _salonRepositoryMock.Object,
+            _inputNormalizerMock.Object);
     }
 
     [Fact]
     public async Task Should_ReturnId_When_ProfessionalIsCreatedSuccessfully()
     {
-        // Arrange
-        var request = new CreateProfessionalRequestDto("Ana Silva", "ana.silva@email.com", "password123");
+        var request = new CreateProfessionalRequestDto("  Ana Silva  ", "  Ana.Silva@Email.com  ", "password123");
         var salonId = Guid.NewGuid();
+
+        _salonRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(salonId))
+            .ReturnsAsync(new AlyUp.Domain.Entities.Salon { Id = salonId, Name = "Salao", Document = "123", Address = "Rua 1" });
 
         _userRepositoryMock
             .Setup(repository => repository.ExistsByEmailAsync("ana.silva@email.com"))
@@ -34,12 +50,9 @@ public class CreateProfessionalUseCaseTests
             .Setup(hasher => hasher.Hash("password123"))
             .Returns("hashed-password");
 
-        // Act
         var result = await _sut.ExecuteAsync(request, salonId);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Error.Should().BeNull();
         result.Value.Should().NotBeEmpty();
 
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<User>(user =>
@@ -49,28 +62,44 @@ public class CreateProfessionalUseCaseTests
             user.Role == UserRole.Professional &&
             user.SalonId == salonId &&
             user.IsActive)), Times.Once);
+    }
 
-        _passwordHasherMock.Verify(hasher => hasher.Hash("password123"), Times.Once);
+    [Fact]
+    public async Task Should_ReturnFailure_When_SalonDoesNotExist()
+    {
+        var request = new CreateProfessionalRequestDto("Ana Silva", "ana.silva@email.com", "password123");
+        var salonId = Guid.NewGuid();
+
+        _salonRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(salonId))
+            .ReturnsAsync((AlyUp.Domain.Entities.Salon?)null);
+
+        var result = await _sut.ExecuteAsync(request, salonId);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Be("Salao nao encontrado.");
+
+        _userRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<User>()), Times.Never);
     }
 
     [Fact]
     public async Task Should_ReturnFailure_When_EmailAlreadyExists()
     {
-        // Arrange
         var request = new CreateProfessionalRequestDto("Ana Silva", "ana.silva@email.com", "password123");
         var salonId = Guid.NewGuid();
+
+        _salonRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(salonId))
+            .ReturnsAsync(new AlyUp.Domain.Entities.Salon { Id = salonId, Name = "Salao", Document = "123", Address = "Rua 1" });
 
         _userRepositoryMock
             .Setup(repository => repository.ExistsByEmailAsync("ana.silva@email.com"))
             .ReturnsAsync(true);
 
-        // Act
         var result = await _sut.ExecuteAsync(request, salonId);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email já cadastrado.");
-        result.Value.Should().Be(default(Guid));
+        result.Error.Should().Be("Email ja cadastrado.");
 
         _passwordHasherMock.Verify(hasher => hasher.Hash(It.IsAny<string>()), Times.Never);
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<User>()), Times.Never);

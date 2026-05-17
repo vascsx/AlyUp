@@ -1,35 +1,47 @@
-using SalonEntity = AlyUp.Domain.Entities.Salon;
 using AlyUp.Application.Common;
 using AlyUp.Application.DTOs.Auth;
 using AlyUp.Application.Interfaces;
 using AlyUp.Domain.Entities;
 using AlyUp.Domain.Enums;
+using SalonEntity = AlyUp.Domain.Entities.Salon;
+
 namespace AlyUp.Application.UseCases.Admin;
 
 public class CreateSalonOwnerUseCase
-
 {
     private readonly IUserRepository _userRepository;
     private readonly ISalonRepository _salonRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IInputNormalizer _inputNormalizer;
+    private readonly IUnitOfWork _unitOfWork;
 
     public CreateSalonOwnerUseCase(
         IUserRepository userRepository,
         ISalonRepository salonRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IInputNormalizer inputNormalizer,
+        IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _salonRepository = salonRepository;
         _passwordHasher = passwordHasher;
+        _inputNormalizer = inputNormalizer;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result<Guid>> ExecuteAsync(CreateSalonOwnerRequestDto request)
     {
-        if (await _userRepository.ExistsByEmailAsync(request.Email))
-            return Result<Guid>.Failure("Email já cadastrado.");
+        var normalizedEmail = _inputNormalizer.NormalizeEmail(request.Email);
+        var normalizedName = _inputNormalizer.NormalizeText(request.Name);
+        var normalizedSalonName = _inputNormalizer.NormalizeText(request.SalonName);
+        var normalizedSalonDocument = _inputNormalizer.NormalizeText(request.SalonDocument);
+        var normalizedSalonAddress = _inputNormalizer.NormalizeText(request.SalonAddress);
 
-        if (await _salonRepository.ExistsBySalonDocumentAsync(request.SalonDocument))
-            return Result<Guid>.Failure("Documento do salão já cadastrado.");
+        if (await _userRepository.ExistsByEmailAsync(normalizedEmail))
+            return Result<Guid>.Failure("Email ja cadastrado.");
+
+        if (await _salonRepository.ExistsBySalonDocumentAsync(normalizedSalonDocument))
+            return Result<Guid>.Failure("Documento do salao ja cadastrado.");
 
         var salonId = Guid.NewGuid();
         var userId = Guid.NewGuid();
@@ -37,17 +49,17 @@ public class CreateSalonOwnerUseCase
         var salon = new SalonEntity
         {
             Id = salonId,
-            Name = request.SalonName,
-            Document = request.SalonDocument,
-            Address = request.SalonAddress,
+            Name = normalizedSalonName,
+            Document = normalizedSalonDocument,
+            Address = normalizedSalonAddress,
             CreatedAt = DateTime.UtcNow
         };
 
         var user = new User
         {
             Id = userId,
-            Name = request.Name,
-            Email = request.Email,
+            Name = normalizedName,
+            Email = normalizedEmail,
             PasswordHash = _passwordHasher.Hash(request.Password),
             Role = UserRole.SalonOwner,
             SalonId = salonId,
@@ -55,8 +67,11 @@ public class CreateSalonOwnerUseCase
             CreatedAt = DateTime.UtcNow
         };
 
-        await _salonRepository.CreateAsync(salon);
-        await _userRepository.CreateAsync(user);
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await _salonRepository.CreateAsync(salon);
+            await _userRepository.CreateAsync(user);
+        });
 
         return Result<Guid>.Success(userId);
     }

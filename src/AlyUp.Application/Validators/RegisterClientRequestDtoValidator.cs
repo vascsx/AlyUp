@@ -9,22 +9,22 @@ public class RegisterClientRequestDtoValidator : AbstractValidator<RegisterClien
     {
         RuleFor(x => x.Name)
             .NotEmpty()
-            .WithMessage("Nome é obrigatório.")
+            .WithMessage("Nome e obrigatorio.")
             .MaximumLength(150)
-            .WithMessage("Nome deve ter no máximo 150 caracteres.");
+            .WithMessage("Nome deve ter no maximo 150 caracteres.");
 
         RuleFor(x => x.Email)
             .NotEmpty()
-            .WithMessage("Email é obrigatório.")
+            .WithMessage("Email e obrigatorio.")
             .EmailAddress()
-            .WithMessage("Email inválido.")
+            .WithMessage("Email invalido.")
             .MaximumLength(150)
-            .WithMessage("Email deve ter no máximo 150 caracteres.");
+            .WithMessage("Email deve ter no maximo 150 caracteres.");
 
         RuleFor(x => x.Password)
             .NotEmpty()
-            .WithMessage("Senha é obrigatória.")
+            .WithMessage("Senha e obrigatoria.")
             .Matches(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$")
-            .WithMessage("Senha deve ter ao menos 8 caracteres, maiúscula, minúscula, número e símbolo.");
+            .WithMessage("Senha deve ter ao menos 8 caracteres, maiuscula, minuscula, numero e simbolo.");
     }
 }

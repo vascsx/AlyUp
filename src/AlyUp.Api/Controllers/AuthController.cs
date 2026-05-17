@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
 using AlyUp.Application.DTOs.Auth;
 using AlyUp.Application.UseCases.Auth;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AlyUp.Api.Controllers;
 
@@ -19,6 +20,7 @@ public class AuthController : ControllerBase
         _registerClientUseCase = registerClientUseCase;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
@@ -26,14 +28,13 @@ public class AuthController : ControllerBase
 
         if (!result.IsSuccess)
         {
-            return result.Error == "Usuário inativo."
-                ? StatusCode(403, new { message = result.Error })
-                : Unauthorized(new { message = result.Error });
+            return Unauthorized(new { message = result.Error });
         }
 
         return Ok(result.Value);
     }
 
+    [AllowAnonymous]
     [HttpPost("registerClient")]
     public async Task<IActionResult> RegisterClient([FromBody] RegisterClientRequestDto request)
     {
@@ -44,7 +45,7 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = result.Error });
         }
 
-        return Created("", new
+        return Created(string.Empty, new
         {
             message = "Cliente registrado com sucesso.",
             id = result.Value

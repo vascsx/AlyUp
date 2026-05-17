@@ -12,6 +12,7 @@ public static class MasterUserSeeder
     public static async Task SeedAsync(
         AppDbContext db,
         IPasswordHasher passwordHasher,
+        IInputNormalizer inputNormalizer,
         IConfiguration configuration,
         ILogger logger)
     {
@@ -26,32 +27,35 @@ public static class MasterUserSeeder
             return;
         }
 
+        var normalizedEmail = inputNormalizer.NormalizeEmail(email);
+        var normalizedName = string.IsNullOrWhiteSpace(name) ? "Admin" : inputNormalizer.NormalizeText(name);
+
         var masterAlreadyExists = await db.Users.AnyAsync(u => u.IsMaster);
         if (masterAlreadyExists)
         {
             return;
         }
 
-        var existingByEmail = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        var existingByEmail = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
         if (existingByEmail is not null)
         {
             existingByEmail.IsMaster = true;
             existingByEmail.Role = UserRole.Admin;
             existingByEmail.IsActive = true;
-            existingByEmail.Name = string.IsNullOrWhiteSpace(name) ? existingByEmail.Name : name;
+            existingByEmail.Name = normalizedName;
             existingByEmail.PasswordHash = passwordHasher.Hash(password);
             existingByEmail.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
-            logger.LogInformation("Existing user promoted to master (Admin) by email: {Email}", email);
+            logger.LogInformation("Existing user promoted to master (Admin) by email: {Email}", normalizedEmail);
             return;
         }
 
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Name = string.IsNullOrWhiteSpace(name) ? "Admin" : name,
-            Email = email,
+            Name = normalizedName,
+            Email = normalizedEmail,
             PasswordHash = passwordHasher.Hash(password),
             Role = UserRole.Admin,
             IsMaster = true,
@@ -62,6 +66,6 @@ public static class MasterUserSeeder
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Master user (Admin) created with email: {Email}", email);
+        logger.LogInformation("Master user (Admin) created with email: {Email}", normalizedEmail);
     }
 }

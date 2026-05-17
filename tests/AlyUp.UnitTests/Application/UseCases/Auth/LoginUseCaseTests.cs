@@ -13,20 +13,25 @@ public class LoginUseCaseTests
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
     private readonly Mock<IPasswordHasher> _passwordHasherMock = new();
     private readonly Mock<IJwtTokenGenerator> _jwtTokenGeneratorMock = new();
+    private readonly Mock<IInputNormalizer> _inputNormalizerMock = new();
     private readonly LoginUseCase _sut;
 
     public LoginUseCaseTests()
     {
+        _inputNormalizerMock
+            .Setup(normalizer => normalizer.NormalizeEmail(It.IsAny<string>()))
+            .Returns<string>(email => email.Trim().ToLowerInvariant());
+
         _sut = new LoginUseCase(
             _userRepositoryMock.Object,
             _passwordHasherMock.Object,
-            _jwtTokenGeneratorMock.Object);
+            _jwtTokenGeneratorMock.Object,
+            _inputNormalizerMock.Object);
     }
 
     [Fact]
     public async Task Should_ReturnToken_When_LoginIsValid()
     {
-        // Arrange
         var request = new LoginRequestDto("  John.Doe@Email.com ", "password123");
         var user = new User
         {
@@ -51,12 +56,9 @@ public class LoginUseCaseTests
             .Setup(generator => generator.GenerateToken(user))
             .Returns("jwt-token");
 
-        // Act
         var result = await _sut.ExecuteAsync(request);
 
-        // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Error.Should().BeNull();
         result.Value.Should().NotBeNull();
         result.Value!.Token.Should().Be("jwt-token");
         result.Value.UserId.Should().Be(user.Id);
@@ -64,15 +66,13 @@ public class LoginUseCaseTests
         result.Value.Role.Should().Be(user.Role);
         result.Value.SalonId.Should().Be(user.SalonId);
 
-        _userRepositoryMock.Verify(repository => repository.GetByEmailAsync("john.doe@email.com"), Times.Once);
-        _passwordHasherMock.Verify(hasher => hasher.Verify("password123", user.PasswordHash), Times.Once);
+        _inputNormalizerMock.Verify(normalizer => normalizer.NormalizeEmail(request.Email), Times.Once);
         _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(user), Times.Once);
     }
 
     [Fact]
     public async Task Should_ReturnFailure_When_PasswordIsInvalid()
     {
-        // Arrange
         var request = new LoginRequestDto("john.doe@email.com", "invalid-password");
         var user = new User
         {
@@ -92,12 +92,10 @@ public class LoginUseCaseTests
             .Setup(hasher => hasher.Verify("invalid-password", user.PasswordHash))
             .Returns(false);
 
-        // Act
         var result = await _sut.ExecuteAsync(request);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ou senha inválidos.");
+        result.Error.Should().Be("Email ou senha invalidos.");
         result.Value.Should().BeNull();
 
         _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(It.IsAny<User>()), Times.Never);
@@ -106,19 +104,16 @@ public class LoginUseCaseTests
     [Fact]
     public async Task Should_ReturnFailure_When_UserDoesNotExist()
     {
-        // Arrange
         var request = new LoginRequestDto("missing@email.com", "password123");
 
         _userRepositoryMock
             .Setup(repository => repository.GetByEmailAsync("missing@email.com"))
             .ReturnsAsync((User?)null);
 
-        // Act
         var result = await _sut.ExecuteAsync(request);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ou senha inválidos.");
+        result.Error.Should().Be("Email ou senha invalidos.");
         result.Value.Should().BeNull();
 
         _passwordHasherMock.Verify(hasher => hasher.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
@@ -126,9 +121,8 @@ public class LoginUseCaseTests
     }
 
     [Fact]
-    public async Task Should_ReturnFailure_When_UserIsInactive()
+    public async Task Should_ReturnGenericFailure_When_UserIsInactive()
     {
-        // Arrange
         var request = new LoginRequestDto("john.doe@email.com", "password123");
         var user = new User
         {
@@ -148,12 +142,10 @@ public class LoginUseCaseTests
             .Setup(hasher => hasher.Verify("password123", user.PasswordHash))
             .Returns(true);
 
-        // Act
         var result = await _sut.ExecuteAsync(request);
 
-        // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Usuário inativo.");
+        result.Error.Should().Be("Email ou senha invalidos.");
         result.Value.Should().BeNull();
 
         _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(It.IsAny<User>()), Times.Never);

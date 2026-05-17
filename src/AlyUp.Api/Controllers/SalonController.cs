@@ -1,34 +1,49 @@
+using AlyUp.Application.DTOs.Auth;
+using AlyUp.Application.Interfaces;
+using AlyUp.Application.Security;
+using AlyUp.Application.UseCases.Salon;
+using AlyUp.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using AlyUp.Application.DTOs.Auth;
-using AlyUp.Application.UseCases.Salon;
 
 namespace AlyUp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "SalonOwner")]
+[Authorize(Policy = AppPolicies.RequireSalonOwnerOrMaster)]
 public class SalonController : ControllerBase
 {
     private readonly CreateProfessionalUseCase _createProfessionalUseCase;
+    private readonly ICurrentUserService _currentUserService;
 
-    public SalonController(CreateProfessionalUseCase createProfessionalUseCase)
+    public SalonController(
+        CreateProfessionalUseCase createProfessionalUseCase,
+        ICurrentUserService currentUserService)
     {
         _createProfessionalUseCase = createProfessionalUseCase;
+        _currentUserService = currentUserService;
     }
 
     [HttpPost("createProfessionals")]
-    public async Task<IActionResult> CreateProfessional(CreateProfessionalRequestDto request)
+    public async Task<IActionResult> CreateProfessional([FromBody] CreateProfessionalRequestDto request)
     {
-        var salonIdClaim = User.FindFirst("SalonId")?.Value;
-        if (string.IsNullOrEmpty(salonIdClaim))
+        Guid? salonId = null;
+
+        if (_currentUserService.IsInRole(UserRole.SalonOwner))
         {
-            return BadRequest(new { message = "Salão não identificado no token." });
+            salonId = _currentUserService.SalonId;
+        }
+        else if (_currentUserService.IsMaster)
+        {
+            salonId = request.SalonId;
         }
 
-        var salonId = Guid.Parse(salonIdClaim);
+        if (!salonId.HasValue || salonId.Value == Guid.Empty)
+        {
+            return BadRequest(new { message = "Salao nao identificado para criacao do profissional." });
+        }
 
-        var result = await _createProfessionalUseCase.ExecuteAsync(request, salonId);
+        var result = await _createProfessionalUseCase.ExecuteAsync(request, salonId.Value);
 
         if (!result.IsSuccess)
         {

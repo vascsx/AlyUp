@@ -1,15 +1,22 @@
 using AlyUp.Application.Interfaces;
 using AlyUp.Infrastructure.Data;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Builder;
 
 namespace AlyUp.Infrastructure.Extensions;
+
 public static class DatabaseExtensions
 {
     public static async Task MigrateAndSeedAsync(this WebApplication app)
     {
+        if (app.Configuration.GetValue<bool>("Database:SkipMigrationsAndSeed"))
+        {
+            return;
+        }
+
         using var scope = app.Services.CreateScope();
 
         var services = scope.ServiceProvider;
@@ -26,11 +33,13 @@ public static class DatabaseExtensions
         }
         else
         {
-            logger.LogWarning("No EF Core migrations found. Skipping Database.Migrate().");
+            logger.LogWarning("No EF Core migrations found. Using Database.EnsureCreated().");
+            await db.Database.EnsureCreatedAsync();
         }
 
         var passwordHasher = services.GetRequiredService<IPasswordHasher>();
-        await MasterUserSeeder.SeedAsync(db, passwordHasher, app.Configuration, logger);
+        var inputNormalizer = services.GetRequiredService<IInputNormalizer>();
+        await MasterUserSeeder.SeedAsync(db, passwordHasher, inputNormalizer, app.Configuration, logger);
     }
 
     private static async Task FixEfMigrationsHistoryNamingAsync(AppDbContext db, ILogger logger)

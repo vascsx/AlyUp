@@ -80,6 +80,7 @@ public class AppDbContext : DbContext
         builder.Property(u => u.Name).IsRequired().HasMaxLength(150);
         builder.Property(u => u.PasswordHash).IsRequired();
         builder.Property(u => u.IsMaster).IsRequired().HasDefaultValue(false);
+        builder.Property(u => u.IsActive).IsRequired().HasDefaultValue(true);
 
         builder.HasOne(u => u.Salon)
             .WithMany(s => s.Users)
@@ -93,7 +94,9 @@ public class AppDbContext : DbContext
         builder.ToTable("salons");
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Name).IsRequired().HasMaxLength(150);
-        builder.Property(s => s.Document).HasMaxLength(20);
+        builder.Property(s => s.Document).IsRequired().HasMaxLength(20);
+        builder.HasIndex(s => s.Document).IsUnique();
+        builder.Property(s => s.Address).IsRequired().HasMaxLength(250);
     }
 
     private static void ConfigureService(ModelBuilder modelBuilder)
