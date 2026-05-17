@@ -1,0 +1,70 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    machine:
+      image: ubuntu-2204:2024.01.1
+    resource_class: large
+    steps:
+      - checkout
+
+      - run:
+          name: Install .NET SDK 10
+          command: |
+            wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+            chmod +x dotnet-install.sh
+            ./dotnet-install.sh --channel 10.0 --install-dir $HOME/.dotnet
+            echo 'export PATH=$HOME/.dotnet:$PATH' >> $BASH_ENV
+            echo 'export DOTNET_ROOT=$HOME/.dotnet' >> $BASH_ENV
+            source $BASH_ENV
+            dotnet --version
+
+      - restore_cache:
+          keys:
+            - nuget-packages-v1-{{ checksum "src/AlyUp.Api/AlyUp.Api.csproj" }}-{{ checksum "src/AlyUp.Application/AlyUp.Application.csproj" }}-{{ checksum "src/AlyUp.Domain/AlyUp.Domain.csproj" }}-{{ checksum "src/AlyUp.Infrastructure/AlyUp.Infrastructure.csproj" }}-{{ checksum "tests/AlyUp.UnitTests/AlyUp.UnitTests.csproj" }}-{{ checksum "tests/AlyUp.IntegrationTests/AlyUp.IntegrationTests.csproj" }}
+            - nuget-packages-v1-
+
+      - run:
+          name: Restore Dependencies
+          command: |
+            dotnet restore src/AlyUp.Api/AlyUp.Api.csproj
+            dotnet restore src/AlyUp.Application/AlyUp.Application.csproj
+            dotnet restore src/AlyUp.Domain/AlyUp.Domain.csproj
+            dotnet restore src/AlyUp.Infrastructure/AlyUp.Infrastructure.csproj
+            dotnet restore tests/AlyUp.UnitTests/AlyUp.UnitTests.csproj
+            dotnet restore tests/AlyUp.IntegrationTests/AlyUp.IntegrationTests.csproj
+
+      - save_cache:
+          key: nuget-packages-v1-{{ checksum "src/AlyUp.Api/AlyUp.Api.csproj" }}-{{ checksum "src/AlyUp.Application/AlyUp.Application.csproj" }}-{{ checksum "src/AlyUp.Domain/AlyUp.Domain.csproj" }}-{{ checksum "src/AlyUp.Infrastructure/AlyUp.Infrastructure.csproj" }}-{{ checksum "tests/AlyUp.UnitTests/AlyUp.UnitTests.csproj" }}-{{ checksum "tests/AlyUp.IntegrationTests/AlyUp.IntegrationTests.csproj" }}
+          paths:
+            - ~/.nuget/packages
+
+      - run:
+          name: Build Projects
+          command: |
+            dotnet build src/AlyUp.Domain/AlyUp.Domain.csproj --configuration Release --no-restore
+            dotnet build src/AlyUp.Application/AlyUp.Application.csproj --configuration Release --no-restore
+            dotnet build src/AlyUp.Infrastructure/AlyUp.Infrastructure.csproj --configuration Release --no-restore
+            dotnet build src/AlyUp.Api/AlyUp.Api.csproj --configuration Release --no-restore
+            dotnet build tests/AlyUp.UnitTests/AlyUp.UnitTests.csproj --configuration Release --no-restore
+            dotnet build tests/AlyUp.IntegrationTests/AlyUp.IntegrationTests.csproj --configuration Release --no-restore
+
+      - run:
+          name: Run Unit Tests
+          command: dotnet test tests/AlyUp.UnitTests/AlyUp.UnitTests.csproj --configuration Release --no-build --results-directory tests/AlyUp.UnitTests/TestResults --logger "trx;LogFileName=unit-tests.trx"
+
+      - run:
+          name: Run Integration Tests
+          command: dotnet test tests/AlyUp.IntegrationTests/AlyUp.IntegrationTests.csproj --configuration Release --no-build --results-directory tests/AlyUp.IntegrationTests/TestResults --logger "trx;LogFileName=integration-tests.trx"
+
+      - store_test_results:
+          path: tests/AlyUp.UnitTests/TestResults
+
+      - store_test_results:
+          path: tests/AlyUp.IntegrationTests/TestResults
+
+workflows:
+  version: 2
+  build-test:
+    jobs:
+      - build-and-test

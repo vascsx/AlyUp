@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="docker-compose.yaml" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/AlyUp.Api/AlyUp.Api.csproj" />
+    <Project Path="src/AlyUp.Application/AlyUp.Application.csproj" />
+    <Project Path="src/AlyUp.Domain/AlyUp.Domain.csproj" />
+    <Project Path="src/AlyUp.Infrastructure/AlyUp.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AlyUp.IntegrationTests/AlyUp.IntegrationTests.csproj" />
+    <Project Path="tests/AlyUp.UnitTests/AlyUp.UnitTests.csproj" />
+  </Folder>
+</Solution>

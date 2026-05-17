@@ -1,0 +1,6 @@
+@AlyUp.Api_HostAddress = http://localhost:5095
+
+GET {{AlyUp.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
