@@ -2,8 +2,9 @@
 
 public enum UserRole
 {
-    Admin = 1,
-    SalonOwner = 2,
-    Professional = 3,
-    Client = 4
+    Master = 1,
+    Admin = 2,
+    SalonOwner = 3,
+    Professional = 4,
+    Client = 5
 }

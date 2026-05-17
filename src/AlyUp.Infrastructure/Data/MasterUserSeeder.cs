@@ -28,9 +28,9 @@ public static class MasterUserSeeder
         }
 
         var normalizedEmail = inputNormalizer.NormalizeEmail(email);
-        var normalizedName = string.IsNullOrWhiteSpace(name) ? "Admin" : inputNormalizer.NormalizeText(name);
+        var normalizedName = string.IsNullOrWhiteSpace(name) ? "Master" : inputNormalizer.NormalizeText(name);
 
-        var masterAlreadyExists = await db.Users.AnyAsync(u => u.IsMaster);
+        var masterAlreadyExists = await db.Users.AnyAsync(u => u.Role == UserRole.Master);
         if (masterAlreadyExists)
         {
             return;
@@ -39,15 +39,14 @@ public static class MasterUserSeeder
         var existingByEmail = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
         if (existingByEmail is not null)
         {
-            existingByEmail.IsMaster = true;
-            existingByEmail.Role = UserRole.Admin;
+            existingByEmail.Role = UserRole.Master;
             existingByEmail.IsActive = true;
             existingByEmail.Name = normalizedName;
             existingByEmail.PasswordHash = passwordHasher.Hash(password);
             existingByEmail.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();
-            logger.LogInformation("Existing user promoted to master (Admin) by email: {Email}", normalizedEmail);
+            logger.LogInformation("Existing user promoted to master by email: {Email}", normalizedEmail);
             return;
         }
 
@@ -57,8 +56,7 @@ public static class MasterUserSeeder
             Name = normalizedName,
             Email = normalizedEmail,
             PasswordHash = passwordHasher.Hash(password),
-            Role = UserRole.Admin,
-            IsMaster = true,
+            Role = UserRole.Master,
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -66,6 +64,6 @@ public static class MasterUserSeeder
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Master user (Admin) created with email: {Email}", normalizedEmail);
+        logger.LogInformation("Master user created with email: {Email}", normalizedEmail);
     }
 }

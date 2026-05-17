@@ -11,8 +11,6 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; }
 
-    public bool IsMaster { get; set; } = false;
-
     public Guid? SalonId { get; set; }
     public Salon? Salon { get; set; }
 

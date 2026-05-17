@@ -8,6 +8,5 @@ public interface ICurrentUserService
     Guid? UserId { get; }
     Guid? SalonId { get; }
     UserRole? Role { get; }
-    bool IsMaster { get; }
     bool IsInRole(UserRole role);
 }

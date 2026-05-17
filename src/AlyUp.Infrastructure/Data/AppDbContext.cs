@@ -79,7 +79,6 @@ public class AppDbContext : DbContext
         builder.HasIndex(u => u.Email).IsUnique();
         builder.Property(u => u.Name).IsRequired().HasMaxLength(150);
         builder.Property(u => u.PasswordHash).IsRequired();
-        builder.Property(u => u.IsMaster).IsRequired().HasDefaultValue(false);
         builder.Property(u => u.IsActive).IsRequired().HasDefaultValue(true);
 
         builder.HasOne(u => u.Salon)
@@ -136,6 +135,9 @@ public class AppDbContext : DbContext
         builder.ToTable("refresh_tokens");
         builder.HasKey(rt => rt.Id);
         builder.Property(rt => rt.Token).IsRequired();
+        builder.HasIndex(rt => rt.Token).IsUnique();
+        builder.Property(rt => rt.Created).IsRequired();
+        builder.Property(rt => rt.Expires).IsRequired();
         builder.HasOne(rt => rt.User)
             .WithMany(u => u.RefreshTokens)
             .HasForeignKey(rt => rt.UserId);

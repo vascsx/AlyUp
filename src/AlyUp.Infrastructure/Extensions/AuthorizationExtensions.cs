@@ -13,12 +13,7 @@ public static class AuthorizationExtensions
             options.AddPolicy(AppPolicies.RequireMaster, policy =>
             {
                 policy.RequireAuthenticatedUser();
-                policy.RequireAssertion(context =>
-                    context.User.IsInRole(UserRole.Admin.ToString()) &&
-                    string.Equals(
-                        context.User.FindFirst(AppClaimTypes.IsMaster)?.Value,
-                        bool.TrueString,
-                        StringComparison.OrdinalIgnoreCase));
+                policy.RequireRole(UserRole.Master.ToString());
             });
 
             options.AddPolicy(AppPolicies.RequireSalonOwnerOrMaster, policy =>
@@ -26,17 +21,19 @@ public static class AuthorizationExtensions
                 policy.RequireAuthenticatedUser();
                 policy.RequireAssertion(context =>
                     context.User.IsInRole(UserRole.SalonOwner.ToString()) ||
-                    (context.User.IsInRole(UserRole.Admin.ToString()) &&
-                     string.Equals(
-                         context.User.FindFirst(AppClaimTypes.IsMaster)?.Value,
-                         bool.TrueString,
-                         StringComparison.OrdinalIgnoreCase)));
+                    context.User.IsInRole(UserRole.Master.ToString()));
             });
 
             options.AddPolicy(AppPolicies.RequireProfessional, policy =>
             {
                 policy.RequireAuthenticatedUser();
                 policy.RequireRole(UserRole.Professional.ToString());
+            });
+
+            options.AddPolicy(AppPolicies.RequireClient, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(UserRole.Client.ToString());
             });
         });
 

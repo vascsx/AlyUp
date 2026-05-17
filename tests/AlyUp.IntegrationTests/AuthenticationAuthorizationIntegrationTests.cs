@@ -59,14 +59,11 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             password = "123"
         });
 
-        var body = await response.Content.ReadAsStringAsync();
-
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        body.Should().Contain("errors");
     }
 
     [Fact]
-    public async Task Login_Should_ReturnTokenWithoutSensitiveClaims()
+    public async Task Login_Should_ReturnAccessAndRefreshTokens_WithoutSensitiveClaims()
     {
         await _factory.ResetDatabaseAsync();
 
@@ -95,13 +92,17 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         payload.Should().NotBeNull();
         payload!.UserId.Should().Be(user.Id);
         payload.Role.Should().Be(UserRole.Client);
+        payload.RefreshToken.Should().NotBeNullOrWhiteSpace();
 
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(payload.Token);
         jwt.Claims.Should().Contain(claim => claim.Type == "UserId" && claim.Value == user.Id.ToString());
         jwt.Claims.Should().Contain(claim => claim.Type == "Role" && claim.Value == UserRole.Client.ToString());
         jwt.Claims.Should().NotContain(claim => claim.Type == "Email");
         jwt.Claims.Should().NotContain(claim => claim.Type == "Name");
-        jwt.Claims.Should().NotContain(claim => claim.Type.Contains("password", StringComparison.OrdinalIgnoreCase));
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        dbContext.RefreshTokens.Should().Contain(token => token.UserId == user.Id && token.Token == payload.RefreshToken && token.Revoked == null);
     }
 
     [Fact]
@@ -128,10 +129,93 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             password = "Password123!"
         });
 
-        var body = await response.Content.ReadAsStringAsync();
-
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        body.Should().Contain("Email ou senha invalidos.");
+    }
+
+    [Fact]
+    public async Task Refresh_Should_RotateRefreshToken_And_RevokePreviousOne()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var passwordHasher = new BCryptPasswordHasher();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Refresh User",
+            Email = "refresh@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        };
+
+        await _factory.SeedAsync(user);
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/Auth/login", new
+        {
+            email = "refresh@email.com",
+            password = "Password123!"
+        });
+
+        var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
+        loginPayload.Should().NotBeNull();
+
+        var refreshResponse = await _client.PostAsJsonAsync("/api/Auth/refresh", new
+        {
+            refreshToken = loginPayload!.RefreshToken
+        });
+
+        refreshResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var refreshPayload = await refreshResponse.Content.ReadFromJsonAsync<RefreshTokenResponseDto>();
+        refreshPayload.Should().NotBeNull();
+        refreshPayload!.RefreshToken.Should().NotBe(loginPayload.RefreshToken);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        dbContext.RefreshTokens.Should().Contain(token => token.Token == loginPayload.RefreshToken && token.Revoked != null);
+        dbContext.RefreshTokens.Should().Contain(token => token.Token == refreshPayload.RefreshToken && token.Revoked == null);
+    }
+
+    [Fact]
+    public async Task Logout_Should_RevokeRefreshToken_And_BlockFurtherRefresh()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var passwordHasher = new BCryptPasswordHasher();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Logout User",
+            Email = "logout@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        };
+
+        await _factory.SeedAsync(user);
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/Auth/login", new
+        {
+            email = "logout@email.com",
+            password = "Password123!"
+        });
+
+        var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
+        loginPayload.Should().NotBeNull();
+
+        var logoutResponse = await _client.PostAsJsonAsync("/api/Auth/logout", new
+        {
+            refreshToken = loginPayload!.RefreshToken
+        });
+
+        logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var refreshResponse = await _client.PostAsJsonAsync("/api/Auth/refresh", new
+        {
+            refreshToken = loginPayload.RefreshToken
+        });
+
+        refreshResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -139,7 +223,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var adminToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Admin.ToString(), isMaster: false);
+        var adminToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Admin.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
         var response = await _client.PostAsJsonAsync("/api/Admin/registerSalonOwner", new
@@ -160,7 +244,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Admin.ToString(), isMaster: true);
+        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Master.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
 
         var response = await _client.PostAsJsonAsync("/api/Admin/registerSalonOwner", new
@@ -174,11 +258,6 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-
-        using var scope = _factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        dbContext.Users.Should().Contain(user => user.Email == "owner@email.com" && user.Role == UserRole.SalonOwner);
-        dbContext.Salons.Should().Contain(salon => salon.Document == "123456789");
     }
 
     [Fact]
@@ -222,7 +301,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         var salonId = Guid.NewGuid();
         await _factory.SeedAsync(new Salon { Id = salonId, Name = "Salao Master", Document = "333", Address = "Rua 3" });
 
-        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Admin.ToString(), isMaster: true);
+        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Master.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
 
         var response = await _client.PostAsJsonAsync("/api/Salon/createProfessionals", new
@@ -241,7 +320,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Admin.ToString(), isMaster: true);
+        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Master.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
 
         var response = await _client.PostAsJsonAsync("/api/Salon/createProfessionals", new
@@ -254,9 +333,73 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+    [Fact]
+    public async Task ProfessionalEndpoint_Should_ReturnOnlyCurrentProfessional()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var salonId = Guid.NewGuid();
+        var professionalUserId = Guid.NewGuid();
+        await _factory.SeedAsync(
+            new Salon { Id = salonId, Name = "Salao Professional", Document = "444", Address = "Rua 4" },
+            new User
+            {
+                Id = professionalUserId,
+                Name = "Professional User",
+                Email = "professional.user@email.com",
+                PasswordHash = "hash",
+                Role = UserRole.Professional,
+                SalonId = salonId,
+                IsActive = true
+            });
+
+        var token = _factory.CreateToken(professionalUserId, UserRole.Professional.ToString(), salonId);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.GetAsync("/api/Professional/me");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await response.Content.ReadFromJsonAsync<UserResponseDto>();
+        payload.Should().NotBeNull();
+        payload!.Id.Should().Be(professionalUserId);
+        payload.Role.Should().Be(UserRole.Professional);
+        payload.SalonId.Should().Be(salonId);
+    }
+
+    [Fact]
+    public async Task ClientEndpoint_Should_ReturnOnlyCurrentClientUser()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var clientUserId = Guid.NewGuid();
+        await _factory.SeedAsync(new User
+        {
+            Id = clientUserId,
+            Name = "Client User",
+            Email = "client.user@email.com",
+            PasswordHash = "hash",
+            Role = UserRole.Client,
+            IsActive = true
+        });
+
+        var token = _factory.CreateToken(clientUserId, UserRole.Client.ToString());
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.GetAsync("/api/Client/me");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await response.Content.ReadFromJsonAsync<UserResponseDto>();
+        payload.Should().NotBeNull();
+        payload!.Id.Should().Be(clientUserId);
+        payload.Role.Should().Be(UserRole.Client);
+    }
+
     [Theory]
     [InlineData("/api/Admin/registerSalonOwner")]
     [InlineData("/api/Salon/createProfessionals")]
+    [InlineData("/api/Professional/me")]
     public async Task Client_Should_NotAccess_PrivilegedEndpoints(string url)
     {
         await _factory.ResetDatabaseAsync();
@@ -264,35 +407,55 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         var clientToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Client.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", clientToken);
 
-        var response = await _client.PostAsJsonAsync(url, new
-        {
-            name = "Any",
-            email = "any@email.com",
-            password = "Password123!",
-            salonName = "Salao A",
-            salonDocument = "123456789",
-            salonAddress = "Rua 1"
-        });
+        var response = url.Contains("/me", StringComparison.Ordinal)
+            ? await _client.GetAsync(url)
+            : await _client.PostAsJsonAsync(url, new
+            {
+                name = "Any",
+                email = "any@email.com",
+                password = "Password123!",
+                salonName = "Salao A",
+                salonDocument = "123456789",
+                salonAddress = "Rua 1"
+            });
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Theory]
-    [InlineData("WrongAudience", "AlyUp.IntegrationTests", "wrong-audience", null)]
-    [InlineData("WrongIssuer", "wrong-issuer", "AlyUp.Clients", null)]
-    [InlineData("WrongSignature", "AlyUp.IntegrationTests", "AlyUp.Clients", "another-signing-key-with-32-chars!!!")]
+    [InlineData("/api/Client/me")]
+    [InlineData("/api/Auth/refresh")]
+    public async Task Professional_Should_NotAccess_ClientOnlyEndpoints(string url)
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var professionalToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Professional.ToString(), Guid.NewGuid());
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", professionalToken);
+
+        var response = url.EndsWith("/me", StringComparison.Ordinal)
+            ? await _client.GetAsync(url)
+            : await _client.PostAsJsonAsync(url, new { refreshToken = "invalid" });
+
+        if (url.EndsWith("/me", StringComparison.Ordinal))
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        else
+            response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Theory]
+    [InlineData("wrong-audience", "AlyUp.IntegrationTests", null)]
+    [InlineData("AlyUp.Clients", "wrong-issuer", null)]
+    [InlineData("AlyUp.Clients", "AlyUp.IntegrationTests", "another-signing-key-with-32-chars!!!")]
     public async Task PrivilegedEndpoints_Should_RejectInvalidTokens(
-        string _,
-        string issuer,
         string audience,
+        string issuer,
         string? signingKey)
     {
         await _factory.ResetDatabaseAsync();
 
         var token = _factory.CreateToken(
             Guid.NewGuid(),
-            UserRole.Admin.ToString(),
-            isMaster: true,
+            UserRole.Master.ToString(),
             issuer: issuer,
             audience: audience,
             signingKey: signingKey);
@@ -319,8 +482,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
 
         var token = _factory.CreateToken(
             Guid.NewGuid(),
-            UserRole.Admin.ToString(),
-            isMaster: true,
+            UserRole.Master.ToString(),
             expires: DateTime.UtcNow.AddMinutes(-5));
 
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

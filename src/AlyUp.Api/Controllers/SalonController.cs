@@ -2,7 +2,6 @@ using AlyUp.Application.DTOs.Auth;
 using AlyUp.Application.Interfaces;
 using AlyUp.Application.Security;
 using AlyUp.Application.UseCases.Salon;
-using AlyUp.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,29 +13,20 @@ namespace AlyUp.Api.Controllers;
 public class SalonController : ControllerBase
 {
     private readonly CreateProfessionalUseCase _createProfessionalUseCase;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly IAccessScopeService _accessScopeService;
 
     public SalonController(
         CreateProfessionalUseCase createProfessionalUseCase,
-        ICurrentUserService currentUserService)
+        IAccessScopeService accessScopeService)
     {
         _createProfessionalUseCase = createProfessionalUseCase;
-        _currentUserService = currentUserService;
+        _accessScopeService = accessScopeService;
     }
 
     [HttpPost("createProfessionals")]
     public async Task<IActionResult> CreateProfessional([FromBody] CreateProfessionalRequestDto request)
     {
-        Guid? salonId = null;
-
-        if (_currentUserService.IsInRole(UserRole.SalonOwner))
-        {
-            salonId = _currentUserService.SalonId;
-        }
-        else if (_currentUserService.IsMaster)
-        {
-            salonId = request.SalonId;
-        }
+        var salonId = _accessScopeService.ResolveSalonScope(request.SalonId);
 
         if (!salonId.HasValue || salonId.Value == Guid.Empty)
         {

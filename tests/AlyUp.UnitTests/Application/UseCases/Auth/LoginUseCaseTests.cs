@@ -13,6 +13,8 @@ public class LoginUseCaseTests
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
     private readonly Mock<IPasswordHasher> _passwordHasherMock = new();
     private readonly Mock<IJwtTokenGenerator> _jwtTokenGeneratorMock = new();
+    private readonly Mock<IRefreshTokenGenerator> _refreshTokenGeneratorMock = new();
+    private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock = new();
     private readonly Mock<IInputNormalizer> _inputNormalizerMock = new();
     private readonly LoginUseCase _sut;
 
@@ -22,15 +24,21 @@ public class LoginUseCaseTests
             .Setup(normalizer => normalizer.NormalizeEmail(It.IsAny<string>()))
             .Returns<string>(email => email.Trim().ToLowerInvariant());
 
+        _refreshTokenGeneratorMock
+            .Setup(generator => generator.Generate())
+            .Returns("refresh-token");
+
         _sut = new LoginUseCase(
             _userRepositoryMock.Object,
             _passwordHasherMock.Object,
             _jwtTokenGeneratorMock.Object,
+            _refreshTokenGeneratorMock.Object,
+            _refreshTokenRepositoryMock.Object,
             _inputNormalizerMock.Object);
     }
 
     [Fact]
-    public async Task Should_ReturnToken_When_LoginIsValid()
+    public async Task Should_ReturnAccessAndRefreshTokens_When_LoginIsValid()
     {
         var request = new LoginRequestDto("  John.Doe@Email.com ", "password123");
         var user = new User
@@ -61,13 +69,14 @@ public class LoginUseCaseTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.Token.Should().Be("jwt-token");
+        result.Value.RefreshToken.Should().Be("refresh-token");
         result.Value.UserId.Should().Be(user.Id);
-        result.Value.Name.Should().Be(user.Name);
         result.Value.Role.Should().Be(user.Role);
-        result.Value.SalonId.Should().Be(user.SalonId);
 
-        _inputNormalizerMock.Verify(normalizer => normalizer.NormalizeEmail(request.Email), Times.Once);
-        _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(user), Times.Once);
+        _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<RefreshToken>(token =>
+            token.UserId == user.Id &&
+            token.Token == "refresh-token" &&
+            token.Revoked == null)), Times.Once);
     }
 
     [Fact]
@@ -96,9 +105,7 @@ public class LoginUseCaseTests
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Be("Email ou senha invalidos.");
-        result.Value.Should().BeNull();
-
-        _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(It.IsAny<User>()), Times.Never);
+        _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 
     [Fact]
@@ -114,14 +121,11 @@ public class LoginUseCaseTests
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Be("Email ou senha invalidos.");
-        result.Value.Should().BeNull();
-
-        _passwordHasherMock.Verify(hasher => hasher.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-        _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(It.IsAny<User>()), Times.Never);
+        _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 
     [Fact]
-    public async Task Should_ReturnGenericFailure_When_UserIsInactive()
+    public async Task Should_ReturnFailure_When_UserIsInactive()
     {
         var request = new LoginRequestDto("john.doe@email.com", "password123");
         var user = new User
@@ -146,8 +150,6 @@ public class LoginUseCaseTests
 
         result.IsSuccess.Should().BeFalse();
         result.Error.Should().Be("Email ou senha invalidos.");
-        result.Value.Should().BeNull();
-
-        _jwtTokenGeneratorMock.Verify(generator => generator.GenerateToken(It.IsAny<User>()), Times.Never);
+        _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 }

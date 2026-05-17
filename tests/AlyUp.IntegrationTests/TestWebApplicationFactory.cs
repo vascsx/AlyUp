@@ -1,17 +1,15 @@
+using System.Data.Common;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Data.Common;
 using AlyUp.Application.Security;
 using AlyUp.Infrastructure.Data;
-using AlyUp.Infrastructure.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace AlyUp.IntegrationTests;
@@ -133,7 +131,6 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
     public string CreateToken(
         Guid userId,
         string role,
-        bool isMaster = false,
         Guid? salonId = null,
         string? issuer = null,
         string? audience = null,
@@ -145,7 +142,6 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         {
             new(AppClaimTypes.UserId, userId.ToString()),
             new(AppClaimTypes.Role, role),
-            new(AppClaimTypes.IsMaster, isMaster.ToString()),
             new(ClaimTypes.NameIdentifier, userId.ToString()),
             new(ClaimTypes.Role, role)
         };

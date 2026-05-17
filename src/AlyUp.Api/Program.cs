@@ -33,10 +33,13 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ISalonRepository, SalonRepository>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGeneratorService>();
+builder.Services.AddScoped<IRefreshTokenGenerator, RefreshTokenGenerator>();
 builder.Services.AddScoped<IInputNormalizer, InputNormalizer>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAccessScopeService, AccessScopeService>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddScoped<ValidationActionFilter>();
 
@@ -44,8 +47,12 @@ builder.Services.AddScoped<IValidator<LoginRequestDto>, LoginRequestDtoValidator
 builder.Services.AddScoped<IValidator<RegisterClientRequestDto>, RegisterClientRequestDtoValidator>();
 builder.Services.AddScoped<IValidator<CreateSalonOwnerRequestDto>, CreateSalonOwnerRequestDtoValidator>();
 builder.Services.AddScoped<IValidator<CreateProfessionalRequestDto>, CreateProfessionalRequestDtoValidator>();
+builder.Services.AddScoped<IValidator<RefreshTokenRequestDto>, RefreshTokenRequestDtoValidator>();
+builder.Services.AddScoped<IValidator<LogoutRequestDto>, LogoutRequestDtoValidator>();
 
 builder.Services.AddScoped<LoginUseCase>();
+builder.Services.AddScoped<RefreshTokenUseCase>();
+builder.Services.AddScoped<LogoutUseCase>();
 builder.Services.AddScoped<RegisterClientUseCase>();
 builder.Services.AddScoped<CreateSalonOwnerUseCase>();
 builder.Services.AddScoped<CreateProfessionalUseCase>();

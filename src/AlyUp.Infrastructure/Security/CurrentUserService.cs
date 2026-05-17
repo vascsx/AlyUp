@@ -32,9 +32,6 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
-    public bool IsMaster =>
-        bool.TryParse(User?.FindFirstValue(AppClaimTypes.IsMaster), out var isMaster) && isMaster;
-
     public bool IsInRole(UserRole role) => Role == role;
 
     private Guid? TryParseGuidClaim(string claimType)

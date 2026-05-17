@@ -30,7 +30,6 @@ public class JwtTokenGeneratorService : IJwtTokenGenerator
         {
             new(AppClaimTypes.UserId, user.Id.ToString()),
             new(AppClaimTypes.Role, user.Role.ToString()),
-            new(AppClaimTypes.IsMaster, user.IsMaster.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Role, user.Role.ToString())
         };
