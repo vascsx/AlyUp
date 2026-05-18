@@ -28,20 +28,19 @@ public class CreateProfessionalUseCase
     public async Task<Result<Guid>> ExecuteAsync(CreateProfessionalRequestDto request, Guid salonId)
     {
         var normalizedEmail = _inputNormalizer.NormalizeEmail(request.Email);
-        var normalizedName = _inputNormalizer.NormalizeText(request.Name);
 
         if (await _salonRepository.GetByIdAsync(salonId) is null)
-            return Result<Guid>.Failure("Salao nao encontrado.");
+            return Result<Guid>.Failure("O salão informado não foi encontrado.");
 
         if (await _userRepository.ExistsByEmailAsync(normalizedEmail))
-            return Result<Guid>.Failure("Email ja cadastrado.");
+            return Result<Guid>.Failure("Já existe um profissional cadastrado com este e-mail.");
 
         var professionalId = Guid.NewGuid();
 
         var user = new User
         {
             Id = professionalId,
-            Name = normalizedName,
+            Name = request.Name,
             Email = normalizedEmail,
             PasswordHash = _passwordHasher.Hash(request.Password),
             Role = UserRole.Professional,

@@ -30,16 +30,25 @@ public class SalonController : ControllerBase
 
         if (!salonId.HasValue || salonId.Value == Guid.Empty)
         {
-            return BadRequest(new { message = "Salao nao identificado para criacao do profissional." });
+            return BadRequest(new
+            {
+                message = "Não foi possível identificar o salão responsável pelo cadastro do profissional."
+            });
         }
 
         var result = await _createProfessionalUseCase.ExecuteAsync(request, salonId.Value);
 
         if (!result.IsSuccess)
         {
-            return BadRequest(new { message = result.Error });
+            return BadRequest(new
+            {
+                message = result.Error
+            });
         }
 
-        return Ok(new { message = "Profissional criado com sucesso." });
+        return Ok(new
+        {
+            message = "Profissional cadastrado com sucesso."
+        });
     }
 }

@@ -22,23 +22,23 @@ public class GetCurrentUserProfileUseCase
     {
         if (!_currentUserService.UserId.HasValue)
         {
-            return Result<UserResponseDto>.Failure("Usuario nao autenticado.");
+            return Result<UserResponseDto>.Failure("Usuário não autenticado.");
         }
 
         var user = await _userRepository.GetByIdAsync(_currentUserService.UserId.Value);
         if (user is null || !user.IsActive)
         {
-            return Result<UserResponseDto>.Failure("Usuario nao autenticado.");
+            return Result<UserResponseDto>.Failure("Usuário não autenticado.");
         }
 
         if (user.Role != expectedRole || _currentUserService.Role != user.Role)
         {
-            return Result<UserResponseDto>.Failure("Usuario nao autorizado.");
+            return Result<UserResponseDto>.Failure("Usuário não autorizado.");
         }
 
         if (user.SalonId != _currentUserService.SalonId)
         {
-            return Result<UserResponseDto>.Failure("Usuario nao autorizado.");
+            return Result<UserResponseDto>.Failure("Usuário não autorizado.");
         }
 
         return Result<UserResponseDto>.Success(new UserResponseDto(
