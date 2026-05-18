@@ -35,6 +35,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         }));
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAppAuthorization();
+builder.Services.AddAppRateLimiting();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -76,6 +77,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<AuthenticatedUserValidationMiddleware>();
 app.UseAuthorization();

@@ -25,17 +25,16 @@ public class RegisterClientUseCase
     public async Task<Result<Guid>> ExecuteAsync(RegisterClientRequestDto request)
     {
         var normalizedEmail = _inputNormalizer.NormalizeEmail(request.Email);
-        var normalizedName = _inputNormalizer.NormalizeText(request.Name);
 
         if (await _userRepository.ExistsByEmailAsync(normalizedEmail))
-            return Result<Guid>.Failure("Email ja cadastrado.");
+            return Result<Guid>.Failure("Já existe uma conta de cliente cadastrada com este e-mail.");
 
         var userId = Guid.NewGuid();
 
         var user = new User
         {
             Id = userId,
-            Name = normalizedName,
+            Name = request.Name,
             Email = normalizedEmail,
             PasswordHash = _passwordHasher.Hash(request.Password),
             Role = UserRole.Client,

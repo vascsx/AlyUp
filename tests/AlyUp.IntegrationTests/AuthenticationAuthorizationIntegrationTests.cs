@@ -133,6 +133,46 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     }
 
     [Fact]
+    public async Task Login_Should_ReturnTooManyRequests_WhenRateLimitIsExceeded()
+    {
+        await using var localFactory = new TestWebApplicationFactory();
+        await localFactory.ResetDatabaseAsync();
+
+        using var localClient = localFactory.CreateClient();
+        var passwordHasher = new BCryptPasswordHasher();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Rate Limited User",
+            Email = "rate.limit@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        };
+
+        await localFactory.SeedAsync(user);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var response = await localClient.PostAsJsonAsync("/api/Auth/login", new
+            {
+                email = "rate.limit@email.com",
+                password = "Password123!"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        var rateLimitedResponse = await localClient.PostAsJsonAsync("/api/Auth/login", new
+        {
+            email = "rate.limit@email.com",
+            password = "Password123!"
+        });
+
+        rateLimitedResponse.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
     public async Task Refresh_Should_RotateRefreshToken_And_RevokePreviousOne()
     {
         await _factory.ResetDatabaseAsync();

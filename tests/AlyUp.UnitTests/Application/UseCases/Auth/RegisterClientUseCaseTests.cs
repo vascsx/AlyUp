@@ -50,7 +50,7 @@ public class RegisterClientUseCaseTests
 
         _userRepositoryMock.Verify(repository => repository.ExistsByEmailAsync("john.doe@email.com"), Times.Once);
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<User>(user =>
-            user.Name == "John Doe" &&
+            user.Name == "  John Doe  " &&
             user.Email == "john.doe@email.com" &&
             user.PasswordHash == "hashed-password" &&
             user.Role == UserRole.Client &&
@@ -70,7 +70,7 @@ public class RegisterClientUseCaseTests
         var result = await _sut.ExecuteAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ja cadastrado.");
+        result.Error.Should().Be("Já existe uma conta de cliente cadastrada com este e-mail.");
         result.Value.Should().Be(default(Guid));
 
         _passwordHasherMock.Verify(hasher => hasher.Hash(It.IsAny<string>()), Times.Never);

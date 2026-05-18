@@ -1,7 +1,9 @@
 using AlyUp.Application.DTOs.Auth;
+using AlyUp.Application.Security;
 using AlyUp.Application.UseCases.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AlyUp.Api.Controllers;
 
@@ -27,6 +29,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(AppRateLimitPolicies.AuthLogin)]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
     {
@@ -41,6 +44,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(AppRateLimitPolicies.AuthRefresh)]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
     {
@@ -55,6 +59,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(AppRateLimitPolicies.AuthLogout)]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto request)
     {
@@ -63,6 +68,7 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting(AppRateLimitPolicies.AuthRegisterClient)]
     [HttpPost("registerClient")]
     public async Task<IActionResult> RegisterClient([FromBody] RegisterClientRequestDto request)
     {

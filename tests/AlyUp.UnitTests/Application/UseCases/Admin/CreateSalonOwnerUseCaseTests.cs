@@ -38,7 +38,7 @@ public class CreateSalonOwnerUseCaseTests
     }
 
     [Fact]
-    public async Task Should_Create_SalonOwner_UsingNormalizedValues_InsideTransaction()
+    public async Task Should_Create_SalonOwner_UsingCurrentValues_InsideTransaction()
     {
         var request = new CreateSalonOwnerRequestDto(
             "  Maria Owner  ",
@@ -53,7 +53,7 @@ public class CreateSalonOwnerUseCaseTests
             .ReturnsAsync(false);
 
         _salonRepositoryMock
-            .Setup(repository => repository.ExistsBySalonDocumentAsync("123456789"))
+            .Setup(repository => repository.ExistsBySalonDocumentAsync("  123456789  "))
             .ReturnsAsync(false);
 
         _passwordHasherMock
@@ -69,12 +69,12 @@ public class CreateSalonOwnerUseCaseTests
             unitOfWork.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()), Times.Once);
 
         _salonRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<AlyUp.Domain.Entities.Salon>(salon =>
-            salon.Name == "Salao Central" &&
-            salon.Document == "123456789" &&
-            salon.Address == "Rua A, 100")), Times.Once);
+            salon.Name == "  Maria Owner  " &&
+            salon.Document == "  123456789  " &&
+            salon.Address == "  Rua A, 100  ")), Times.Once);
 
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<User>(user =>
-            user.Name == "Maria Owner" &&
+            user.Name == "  Maria Owner  " &&
             user.Email == "maria.owner@email.com" &&
             user.PasswordHash == "hashed-password" &&
             user.Role == UserRole.SalonOwner &&
@@ -99,7 +99,7 @@ public class CreateSalonOwnerUseCaseTests
         var result = await _sut.ExecuteAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ja cadastrado.");
+        result.Error.Should().Be("Já existe uma conta cadastrada com este e-mail.");
 
         _unitOfWorkMock.Verify(unitOfWork =>
             unitOfWork.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -127,7 +127,7 @@ public class CreateSalonOwnerUseCaseTests
         var result = await _sut.ExecuteAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Documento do salao ja cadastrado.");
+        result.Error.Should().Be("Já existe um salão cadastrado com este documento.");
 
         _unitOfWorkMock.Verify(unitOfWork =>
             unitOfWork.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()), Times.Never);
