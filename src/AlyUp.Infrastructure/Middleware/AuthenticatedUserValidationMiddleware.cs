@@ -97,7 +97,7 @@ public class AuthenticatedUserValidationMiddleware
 
         return context.Response.WriteAsync(JsonSerializer.Serialize(new
         {
-            message = "Token invalido ou usuario nao autorizado."
+            message = "Token inválido ou usuário não autorizado."
         }));
     }
 

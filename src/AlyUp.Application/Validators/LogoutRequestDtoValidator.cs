@@ -9,6 +9,6 @@ public class LogoutRequestDtoValidator : AbstractValidator<LogoutRequestDto>
     {
         RuleFor(x => x.RefreshToken)
             .NotEmpty()
-            .WithMessage("Refresh token e obrigatorio.");
+            .WithMessage("Refresh token é obrigatório.");
     }
 }

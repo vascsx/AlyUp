@@ -32,16 +32,12 @@ public class CreateSalonOwnerUseCase
     public async Task<Result<Guid>> ExecuteAsync(CreateSalonOwnerRequestDto request)
     {
         var normalizedEmail = _inputNormalizer.NormalizeEmail(request.Email);
-        var normalizedName = _inputNormalizer.NormalizeText(request.Name);
-        var normalizedSalonName = _inputNormalizer.NormalizeText(request.SalonName);
-        var normalizedSalonDocument = _inputNormalizer.NormalizeText(request.SalonDocument);
-        var normalizedSalonAddress = _inputNormalizer.NormalizeText(request.SalonAddress);
 
         if (await _userRepository.ExistsByEmailAsync(normalizedEmail))
-            return Result<Guid>.Failure("Email ja cadastrado.");
+            return Result<Guid>.Failure("Já existe uma conta cadastrada com este e-mail.");
 
-        if (await _salonRepository.ExistsBySalonDocumentAsync(normalizedSalonDocument))
-            return Result<Guid>.Failure("Documento do salao ja cadastrado.");
+        if (await _salonRepository.ExistsBySalonDocumentAsync(request.SalonDocument))
+            return Result<Guid>.Failure("Já existe um salão cadastrado com este documento.");
 
         var salonId = Guid.NewGuid();
         var userId = Guid.NewGuid();
@@ -49,16 +45,16 @@ public class CreateSalonOwnerUseCase
         var salon = new SalonEntity
         {
             Id = salonId,
-            Name = normalizedSalonName,
-            Document = normalizedSalonDocument,
-            Address = normalizedSalonAddress,
+            Name = request.Name,
+            Document = request.SalonDocument,
+            Address = request.SalonAddress,
             CreatedAt = DateTime.UtcNow
         };
 
         var user = new User
         {
             Id = userId,
-            Name = normalizedName,
+            Name = request.Name,
             Email = normalizedEmail,
             PasswordHash = _passwordHasher.Hash(request.Password),
             Role = UserRole.SalonOwner,

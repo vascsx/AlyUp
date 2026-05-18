@@ -30,7 +30,7 @@ public class AdminController : ControllerBase
 
         return Created(string.Empty, new
         {
-            message = "Dono de salao e salao criados com sucesso.",
+            message = "Dono e salão criados com sucesso.",
             id = result.Value
         });
     }

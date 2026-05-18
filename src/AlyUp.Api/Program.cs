@@ -43,6 +43,7 @@ builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IAccessTokenLifetimeProvider, AccessTokenLifetimeProvider>();
+builder.Services.AddScoped<IRefreshTokenLifetimeProvider, RefreshTokenLifetimeProvider>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGeneratorService>();
 builder.Services.AddScoped<IRefreshTokenGenerator, RefreshTokenGenerator>();
 builder.Services.AddScoped<IInputNormalizer, InputNormalizer>();

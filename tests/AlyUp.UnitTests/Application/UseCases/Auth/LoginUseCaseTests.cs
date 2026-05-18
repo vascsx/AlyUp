@@ -17,6 +17,7 @@ public class LoginUseCaseTests
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock = new();
     private readonly Mock<IInputNormalizer> _inputNormalizerMock = new();
     private readonly Mock<IAccessTokenLifetimeProvider> _accessTokenLifetimeProviderMock = new();
+    private readonly Mock<IRefreshTokenLifetimeProvider> _refreshTokenLifetimeProviderMock = new();
     private readonly LoginUseCase _sut;
 
     public LoginUseCaseTests()
@@ -33,6 +34,10 @@ public class LoginUseCaseTests
             .Setup(provider => provider.GetLifetimeInMinutes())
             .Returns(30);
 
+        _refreshTokenLifetimeProviderMock
+            .Setup(provider => provider.GetLifetimeInDays())
+            .Returns(30);
+
         _sut = new LoginUseCase(
             _userRepositoryMock.Object,
             _passwordHasherMock.Object,
@@ -40,7 +45,8 @@ public class LoginUseCaseTests
             _refreshTokenGeneratorMock.Object,
             _refreshTokenRepositoryMock.Object,
             _inputNormalizerMock.Object,
-            _accessTokenLifetimeProviderMock.Object);
+            _accessTokenLifetimeProviderMock.Object,
+            _refreshTokenLifetimeProviderMock.Object);
     }
 
     [Fact]

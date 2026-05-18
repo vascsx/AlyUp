@@ -14,6 +14,7 @@ public class LoginUseCase
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IInputNormalizer _inputNormalizer;
     private readonly IAccessTokenLifetimeProvider _accessTokenLifetimeProvider;
+    private readonly IRefreshTokenLifetimeProvider _refreshTokenLifetimeProvider;
 
     public LoginUseCase(
         IUserRepository userRepository,
@@ -22,7 +23,8 @@ public class LoginUseCase
         IRefreshTokenGenerator refreshTokenGenerator,
         IRefreshTokenRepository refreshTokenRepository,
         IInputNormalizer inputNormalizer,
-        IAccessTokenLifetimeProvider accessTokenLifetimeProvider)
+        IAccessTokenLifetimeProvider accessTokenLifetimeProvider,
+        IRefreshTokenLifetimeProvider refreshTokenLifetimeProvider)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -31,6 +33,7 @@ public class LoginUseCase
         _refreshTokenRepository = refreshTokenRepository;
         _inputNormalizer = inputNormalizer;
         _accessTokenLifetimeProvider = accessTokenLifetimeProvider;
+        _refreshTokenLifetimeProvider = refreshTokenLifetimeProvider;
     }
 
     public async Task<Result<LoginResponseDto>> ExecuteAsync(LoginRequestDto request)
@@ -48,13 +51,14 @@ public class LoginUseCase
         var token = _jwtTokenGenerator.GenerateToken(user);
         var refreshTokenValue = _refreshTokenGenerator.Generate();
         var expiresInMinutes = _accessTokenLifetimeProvider.GetLifetimeInMinutes();
+        var refreshTokenExpiresInDays = _refreshTokenLifetimeProvider.GetLifetimeInDays();
 
         await _refreshTokenRepository.CreateAsync(new RefreshToken
         {
             UserId = user.Id,
             Token = refreshTokenValue,
             Created = DateTime.UtcNow,
-            Expires = DateTime.UtcNow.AddDays(30)
+            Expires = DateTime.UtcNow.AddDays(refreshTokenExpiresInDays)
         });
 
         var response = new LoginResponseDto(

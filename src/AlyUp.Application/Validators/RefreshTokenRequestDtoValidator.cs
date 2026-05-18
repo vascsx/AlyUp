@@ -9,6 +9,6 @@ public class RefreshTokenRequestDtoValidator : AbstractValidator<RefreshTokenReq
     {
         RuleFor(x => x.RefreshToken)
             .NotEmpty()
-            .WithMessage("Refresh token e obrigatorio.");
+            .WithMessage("Refresh token é obrigatório.");
     }
 }

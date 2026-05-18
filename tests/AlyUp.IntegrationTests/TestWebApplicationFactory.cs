@@ -28,6 +28,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         Environment.SetEnvironmentVariable("Jwt__Issuer", JwtIssuer);
         Environment.SetEnvironmentVariable("Jwt__Audience", JwtAudience);
         Environment.SetEnvironmentVariable("Jwt__AccessTokenMinutes", "30");
+        Environment.SetEnvironmentVariable("Jwt__RefreshTokenDays", "30");
         Environment.SetEnvironmentVariable("Database__SkipMigrationsAndSeed", "true");
     }
 
@@ -44,6 +45,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
                 ["Jwt:Issuer"] = JwtIssuer,
                 ["Jwt:Audience"] = JwtAudience,
                 ["Jwt:AccessTokenMinutes"] = "30",
+                ["Jwt:RefreshTokenDays"] = "30",
                 ["Database:SkipMigrationsAndSeed"] = "true"
             });
         });
@@ -103,6 +105,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         Environment.SetEnvironmentVariable("Jwt__Issuer", null);
         Environment.SetEnvironmentVariable("Jwt__Audience", null);
         Environment.SetEnvironmentVariable("Jwt__AccessTokenMinutes", null);
+        Environment.SetEnvironmentVariable("Jwt__RefreshTokenDays", null);
         Environment.SetEnvironmentVariable("Database__SkipMigrationsAndSeed", null);
     }
 

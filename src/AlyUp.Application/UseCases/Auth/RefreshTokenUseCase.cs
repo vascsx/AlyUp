@@ -13,6 +13,7 @@ public class RefreshTokenUseCase
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAccessTokenLifetimeProvider _accessTokenLifetimeProvider;
+    private readonly IRefreshTokenLifetimeProvider _refreshTokenLifetimeProvider;
 
     public RefreshTokenUseCase(
         IRefreshTokenRepository refreshTokenRepository,
@@ -20,7 +21,8 @@ public class RefreshTokenUseCase
         IJwtTokenGenerator jwtTokenGenerator,
         IRefreshTokenGenerator refreshTokenGenerator,
         IUnitOfWork unitOfWork,
-        IAccessTokenLifetimeProvider accessTokenLifetimeProvider)
+        IAccessTokenLifetimeProvider accessTokenLifetimeProvider,
+        IRefreshTokenLifetimeProvider refreshTokenLifetimeProvider)
     {
         _refreshTokenRepository = refreshTokenRepository;
         _userRepository = userRepository;
@@ -28,21 +30,23 @@ public class RefreshTokenUseCase
         _refreshTokenGenerator = refreshTokenGenerator;
         _unitOfWork = unitOfWork;
         _accessTokenLifetimeProvider = accessTokenLifetimeProvider;
+        _refreshTokenLifetimeProvider = refreshTokenLifetimeProvider;
     }
 
     public async Task<Result<RefreshTokenResponseDto>> ExecuteAsync(RefreshTokenRequestDto request)
     {
         var refreshToken = await _refreshTokenRepository.GetByTokenAsync(request.RefreshToken);
         if (refreshToken is null || !refreshToken.IsActive)
-            return Result<RefreshTokenResponseDto>.Failure("Refresh token invalido ou expirado.");
+            return Result<RefreshTokenResponseDto>.Failure("Refresh token inválido ou expirado.");
 
         var user = await _userRepository.GetByIdAsync(refreshToken.UserId);
         if (user is null || !user.IsActive)
-            return Result<RefreshTokenResponseDto>.Failure("Refresh token invalido ou expirado.");
+            return Result<RefreshTokenResponseDto>.Failure("Refresh token inválido ou expirado.");
 
         var newRefreshTokenValue = _refreshTokenGenerator.Generate();
         var accessToken = _jwtTokenGenerator.GenerateToken(user);
         var expiresInMinutes = _accessTokenLifetimeProvider.GetLifetimeInMinutes();
+        var refreshTokenExpiresInDays = _refreshTokenLifetimeProvider.GetLifetimeInDays();
 
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
@@ -54,7 +58,7 @@ public class RefreshTokenUseCase
                 UserId = user.Id,
                 Token = newRefreshTokenValue,
                 Created = DateTime.UtcNow,
-                Expires = DateTime.UtcNow.AddDays(30)
+                Expires = DateTime.UtcNow.AddDays(refreshTokenExpiresInDays)
             });
         });
 

@@ -16,6 +16,7 @@ public class RefreshTokenUseCaseTests
     private readonly Mock<IRefreshTokenGenerator> _refreshTokenGeneratorMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<IAccessTokenLifetimeProvider> _accessTokenLifetimeProviderMock = new();
+    private readonly Mock<IRefreshTokenLifetimeProvider> _refreshTokenLifetimeProviderMock = new();
     private readonly RefreshTokenUseCase _sut;
 
     public RefreshTokenUseCaseTests()
@@ -23,6 +24,7 @@ public class RefreshTokenUseCaseTests
         _refreshTokenGeneratorMock.Setup(generator => generator.Generate()).Returns("new-refresh-token");
         _jwtTokenGeneratorMock.Setup(generator => generator.GenerateToken(It.IsAny<User>())).Returns("new-access-token");
         _accessTokenLifetimeProviderMock.Setup(provider => provider.GetLifetimeInMinutes()).Returns(30);
+        _refreshTokenLifetimeProviderMock.Setup(provider => provider.GetLifetimeInDays()).Returns(30);
         _unitOfWorkMock
             .Setup(unitOfWork => unitOfWork.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()))
             .Returns<Func<Task>, CancellationToken>(async (action, _) => await action());
@@ -33,7 +35,8 @@ public class RefreshTokenUseCaseTests
             _jwtTokenGeneratorMock.Object,
             _refreshTokenGeneratorMock.Object,
             _unitOfWorkMock.Object,
-            _accessTokenLifetimeProviderMock.Object);
+            _accessTokenLifetimeProviderMock.Object,
+            _refreshTokenLifetimeProviderMock.Object);
     }
 
     [Fact]
@@ -82,6 +85,6 @@ public class RefreshTokenUseCaseTests
         var result = await _sut.ExecuteAsync(new RefreshTokenRequestDto("invalid"));
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Refresh token invalido ou expirado.");
+        result.Error.Should().Be("Refresh token inválido ou expirado.");
     }
 }
