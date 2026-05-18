@@ -27,7 +27,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         Environment.SetEnvironmentVariable("Jwt__Key", JwtKey);
         Environment.SetEnvironmentVariable("Jwt__Issuer", JwtIssuer);
         Environment.SetEnvironmentVariable("Jwt__Audience", JwtAudience);
-        Environment.SetEnvironmentVariable("Jwt__AccessTokenMinutes", "60");
+        Environment.SetEnvironmentVariable("Jwt__AccessTokenMinutes", "30");
         Environment.SetEnvironmentVariable("Database__SkipMigrationsAndSeed", "true");
     }
 
@@ -43,7 +43,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
                 ["Jwt:Key"] = JwtKey,
                 ["Jwt:Issuer"] = JwtIssuer,
                 ["Jwt:Audience"] = JwtAudience,
-                ["Jwt:AccessTokenMinutes"] = "60",
+                ["Jwt:AccessTokenMinutes"] = "30",
                 ["Database:SkipMigrationsAndSeed"] = "true"
             });
         });
@@ -138,10 +138,12 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         DateTime? expires = null)
     {
         var configuration = Resolve<IConfiguration>();
+        var issuedAt = DateTime.UtcNow;
         var claims = new List<Claim>
         {
             new(AppClaimTypes.UserId, userId.ToString()),
             new(AppClaimTypes.Role, role),
+            new(AppClaimTypes.TokenIssuedAt, issuedAt.Ticks.ToString()),
             new(ClaimTypes.NameIdentifier, userId.ToString()),
             new(ClaimTypes.Role, role)
         };
@@ -160,7 +162,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             issuer: issuer ?? configuration["Jwt:Issuer"],
             audience: audience ?? configuration["Jwt:Audience"],
             claims: claims,
-            expires: expires ?? DateTime.UtcNow.AddMinutes(30),
+            expires: expires ?? issuedAt.AddMinutes(30),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

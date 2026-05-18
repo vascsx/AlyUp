@@ -42,6 +42,7 @@ builder.Services.AddScoped<ISalonRepository, SalonRepository>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+builder.Services.AddScoped<IAccessTokenLifetimeProvider, AccessTokenLifetimeProvider>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGeneratorService>();
 builder.Services.AddScoped<IRefreshTokenGenerator, RefreshTokenGenerator>();
 builder.Services.AddScoped<IInputNormalizer, InputNormalizer>();
@@ -61,6 +62,7 @@ builder.Services.AddScoped<LoginUseCase>();
 builder.Services.AddScoped<RefreshTokenUseCase>();
 builder.Services.AddScoped<LogoutUseCase>();
 builder.Services.AddScoped<RegisterClientUseCase>();
+builder.Services.AddScoped<GetCurrentUserProfileUseCase>();
 builder.Services.AddScoped<CreateSalonOwnerUseCase>();
 builder.Services.AddScoped<CreateProfessionalUseCase>();
 
@@ -74,6 +76,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthentication();
+app.UseMiddleware<AuthenticatedUserValidationMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -7,10 +7,17 @@ namespace AlyUp.Application.UseCases.Auth;
 public class LogoutUseCase
 {
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public LogoutUseCase(IRefreshTokenRepository refreshTokenRepository)
+    public LogoutUseCase(
+        IRefreshTokenRepository refreshTokenRepository,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _refreshTokenRepository = refreshTokenRepository;
+        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> ExecuteAsync(LogoutRequestDto request)
@@ -19,8 +26,19 @@ public class LogoutUseCase
         if (refreshToken is null || !refreshToken.IsActive)
             return Result.Success();
 
-        refreshToken.Revoked = DateTime.UtcNow;
-        await _refreshTokenRepository.UpdateAsync(refreshToken);
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            var revokedAt = DateTime.UtcNow;
+            refreshToken.Revoked = revokedAt;
+            await _refreshTokenRepository.UpdateAsync(refreshToken);
+
+            var user = await _userRepository.GetByIdAsync(refreshToken.UserId);
+            if (user is not null)
+            {
+                user.UpdatedAt = revokedAt;
+                await _userRepository.UpdateAsync(user);
+            }
+        });
 
         return Result.Success();
     }

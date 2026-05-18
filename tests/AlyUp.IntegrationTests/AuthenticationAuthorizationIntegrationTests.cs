@@ -219,11 +219,63 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     }
 
     [Fact]
+    public async Task Logout_Should_RevokePreviouslyIssuedAccessToken()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var passwordHasher = new BCryptPasswordHasher();
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Logout Access User",
+            Email = "logout.access@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        };
+
+        await _factory.SeedAsync(user);
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/Auth/login", new
+        {
+            email = "logout.access@email.com",
+            password = "Password123!"
+        });
+
+        var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
+        loginPayload.Should().NotBeNull();
+
+        var logoutResponse = await _client.PostAsJsonAsync("/api/Auth/logout", new
+        {
+            refreshToken = loginPayload!.RefreshToken
+        });
+
+        logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginPayload.Token);
+
+        var profileResponse = await _client.GetAsync("/api/Client/me");
+
+        profileResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task AdminEndpoint_Should_RequireMaster()
     {
         await _factory.ResetDatabaseAsync();
 
-        var adminToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Admin.ToString());
+        var adminUserId = Guid.NewGuid();
+        await _factory.SeedAsync(new User
+        {
+            Id = adminUserId,
+            Name = "Admin User",
+            Email = "admin@email.com",
+            PasswordHash = "hash",
+            Role = UserRole.Admin,
+            IsActive = true
+        });
+
+        var adminToken = _factory.CreateToken(adminUserId, UserRole.Admin.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
         var response = await _client.PostAsJsonAsync("/api/Admin/registerSalonOwner", new
@@ -244,7 +296,18 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Master.ToString());
+        var masterUserId = Guid.NewGuid();
+        await _factory.SeedAsync(new User
+        {
+            Id = masterUserId,
+            Name = "Master User",
+            Email = "master@email.com",
+            PasswordHash = "hash",
+            Role = UserRole.Master,
+            IsActive = true
+        });
+
+        var masterToken = _factory.CreateToken(masterUserId, UserRole.Master.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
 
         var response = await _client.PostAsJsonAsync("/api/Admin/registerSalonOwner", new
@@ -267,12 +330,23 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
 
         var ownerSalonId = Guid.NewGuid();
         var otherSalonId = Guid.NewGuid();
+        var ownerUserId = Guid.NewGuid();
 
         await _factory.SeedAsync(
             new Salon { Id = ownerSalonId, Name = "Salao Dono", Document = "111", Address = "Rua 1" },
-            new Salon { Id = otherSalonId, Name = "Salao Outro", Document = "222", Address = "Rua 2" });
+            new Salon { Id = otherSalonId, Name = "Salao Outro", Document = "222", Address = "Rua 2" },
+            new User
+            {
+                Id = ownerUserId,
+                Name = "Owner User",
+                Email = "owner@email.com",
+                PasswordHash = "hash",
+                Role = UserRole.SalonOwner,
+                SalonId = ownerSalonId,
+                IsActive = true
+            });
 
-        var ownerToken = _factory.CreateToken(Guid.NewGuid(), UserRole.SalonOwner.ToString(), salonId: ownerSalonId);
+        var ownerToken = _factory.CreateToken(ownerUserId, UserRole.SalonOwner.ToString(), salonId: ownerSalonId);
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
 
         var response = await _client.PostAsJsonAsync("/api/Salon/createProfessionals", new
@@ -299,9 +373,20 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         await _factory.ResetDatabaseAsync();
 
         var salonId = Guid.NewGuid();
-        await _factory.SeedAsync(new Salon { Id = salonId, Name = "Salao Master", Document = "333", Address = "Rua 3" });
+        var masterUserId = Guid.NewGuid();
+        await _factory.SeedAsync(
+            new Salon { Id = salonId, Name = "Salao Master", Document = "333", Address = "Rua 3" },
+            new User
+            {
+                Id = masterUserId,
+                Name = "Master User",
+                Email = "master.professional@email.com",
+                PasswordHash = "hash",
+                Role = UserRole.Master,
+                IsActive = true
+            });
 
-        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Master.ToString());
+        var masterToken = _factory.CreateToken(masterUserId, UserRole.Master.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
 
         var response = await _client.PostAsJsonAsync("/api/Salon/createProfessionals", new
@@ -320,7 +405,18 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var masterToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Master.ToString());
+        var masterUserId = Guid.NewGuid();
+        await _factory.SeedAsync(new User
+        {
+            Id = masterUserId,
+            Name = "Master User",
+            Email = "master.no.salon@email.com",
+            PasswordHash = "hash",
+            Role = UserRole.Master,
+            IsActive = true
+        });
+
+        var masterToken = _factory.CreateToken(masterUserId, UserRole.Master.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
 
         var response = await _client.PostAsJsonAsync("/api/Salon/createProfessionals", new
@@ -404,7 +500,18 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var clientToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Client.ToString());
+        var clientUserId = Guid.NewGuid();
+        await _factory.SeedAsync(new User
+        {
+            Id = clientUserId,
+            Name = "Client User",
+            Email = $"client.{Guid.NewGuid():N}@email.com",
+            PasswordHash = "hash",
+            Role = UserRole.Client,
+            IsActive = true
+        });
+
+        var clientToken = _factory.CreateToken(clientUserId, UserRole.Client.ToString());
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", clientToken);
 
         var response = url.Contains("/me", StringComparison.Ordinal)
@@ -429,7 +536,22 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     {
         await _factory.ResetDatabaseAsync();
 
-        var professionalToken = _factory.CreateToken(Guid.NewGuid(), UserRole.Professional.ToString(), Guid.NewGuid());
+        var salonId = Guid.NewGuid();
+        var professionalUserId = Guid.NewGuid();
+        await _factory.SeedAsync(
+            new Salon { Id = salonId, Name = "Salao Professional Forbidden", Document = Guid.NewGuid().ToString("N")[..10], Address = "Rua 5" },
+            new User
+            {
+                Id = professionalUserId,
+                Name = "Professional User",
+                Email = $"professional.{Guid.NewGuid():N}@email.com",
+                PasswordHash = "hash",
+                Role = UserRole.Professional,
+                SalonId = salonId,
+                IsActive = true
+            });
+
+        var professionalToken = _factory.CreateToken(professionalUserId, UserRole.Professional.ToString(), salonId);
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", professionalToken);
 
         var response = url.EndsWith("/me", StringComparison.Ordinal)

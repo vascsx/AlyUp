@@ -12,19 +12,22 @@ public class RefreshTokenUseCase
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAccessTokenLifetimeProvider _accessTokenLifetimeProvider;
 
     public RefreshTokenUseCase(
         IRefreshTokenRepository refreshTokenRepository,
         IUserRepository userRepository,
         IJwtTokenGenerator jwtTokenGenerator,
         IRefreshTokenGenerator refreshTokenGenerator,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IAccessTokenLifetimeProvider accessTokenLifetimeProvider)
     {
         _refreshTokenRepository = refreshTokenRepository;
         _userRepository = userRepository;
         _jwtTokenGenerator = jwtTokenGenerator;
         _refreshTokenGenerator = refreshTokenGenerator;
         _unitOfWork = unitOfWork;
+        _accessTokenLifetimeProvider = accessTokenLifetimeProvider;
     }
 
     public async Task<Result<RefreshTokenResponseDto>> ExecuteAsync(RefreshTokenRequestDto request)
@@ -39,7 +42,7 @@ public class RefreshTokenUseCase
 
         var newRefreshTokenValue = _refreshTokenGenerator.Generate();
         var accessToken = _jwtTokenGenerator.GenerateToken(user);
-        const int expiresInMinutes = 60;
+        var expiresInMinutes = _accessTokenLifetimeProvider.GetLifetimeInMinutes();
 
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {

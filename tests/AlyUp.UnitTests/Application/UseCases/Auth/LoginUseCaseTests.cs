@@ -16,6 +16,7 @@ public class LoginUseCaseTests
     private readonly Mock<IRefreshTokenGenerator> _refreshTokenGeneratorMock = new();
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock = new();
     private readonly Mock<IInputNormalizer> _inputNormalizerMock = new();
+    private readonly Mock<IAccessTokenLifetimeProvider> _accessTokenLifetimeProviderMock = new();
     private readonly LoginUseCase _sut;
 
     public LoginUseCaseTests()
@@ -28,13 +29,18 @@ public class LoginUseCaseTests
             .Setup(generator => generator.Generate())
             .Returns("refresh-token");
 
+        _accessTokenLifetimeProviderMock
+            .Setup(provider => provider.GetLifetimeInMinutes())
+            .Returns(30);
+
         _sut = new LoginUseCase(
             _userRepositoryMock.Object,
             _passwordHasherMock.Object,
             _jwtTokenGeneratorMock.Object,
             _refreshTokenGeneratorMock.Object,
             _refreshTokenRepositoryMock.Object,
-            _inputNormalizerMock.Object);
+            _inputNormalizerMock.Object,
+            _accessTokenLifetimeProviderMock.Object);
     }
 
     [Fact]
@@ -70,6 +76,7 @@ public class LoginUseCaseTests
         result.Value.Should().NotBeNull();
         result.Value!.Token.Should().Be("jwt-token");
         result.Value.RefreshToken.Should().Be("refresh-token");
+        result.Value.ExpiresInMinutes.Should().Be(30);
         result.Value.UserId.Should().Be(user.Id);
         result.Value.Role.Should().Be(user.Role);
 
@@ -104,7 +111,7 @@ public class LoginUseCaseTests
         var result = await _sut.ExecuteAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ou senha invalidos.");
+        result.Error.Should().Be("Email ou senha inválidos.");
         _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 
@@ -120,7 +127,7 @@ public class LoginUseCaseTests
         var result = await _sut.ExecuteAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ou senha invalidos.");
+        result.Error.Should().Be("Email ou senha inválidos.");
         _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 
@@ -149,7 +156,7 @@ public class LoginUseCaseTests
         var result = await _sut.ExecuteAsync(request);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ou senha invalidos.");
+        result.Error.Should().Be("Email ou senha inválidos.");
         _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 }

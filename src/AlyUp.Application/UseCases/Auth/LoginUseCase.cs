@@ -13,6 +13,7 @@ public class LoginUseCase
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IInputNormalizer _inputNormalizer;
+    private readonly IAccessTokenLifetimeProvider _accessTokenLifetimeProvider;
 
     public LoginUseCase(
         IUserRepository userRepository,
@@ -20,7 +21,8 @@ public class LoginUseCase
         IJwtTokenGenerator jwtTokenGenerator,
         IRefreshTokenGenerator refreshTokenGenerator,
         IRefreshTokenRepository refreshTokenRepository,
-        IInputNormalizer inputNormalizer)
+        IInputNormalizer inputNormalizer,
+        IAccessTokenLifetimeProvider accessTokenLifetimeProvider)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
@@ -28,6 +30,7 @@ public class LoginUseCase
         _refreshTokenGenerator = refreshTokenGenerator;
         _refreshTokenRepository = refreshTokenRepository;
         _inputNormalizer = inputNormalizer;
+        _accessTokenLifetimeProvider = accessTokenLifetimeProvider;
     }
 
     public async Task<Result<LoginResponseDto>> ExecuteAsync(LoginRequestDto request)
@@ -37,14 +40,14 @@ public class LoginUseCase
         var user = await _userRepository.GetByEmailAsync(email);
 
         if (user is null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
-            return Result<LoginResponseDto>.Failure("Email ou senha invalidos.");
+            return Result<LoginResponseDto>.Failure("Email ou senha inválidos.");
 
         if (!user.IsActive)
-            return Result<LoginResponseDto>.Failure("Email ou senha invalidos.");
+            return Result<LoginResponseDto>.Failure("Email ou senha inválidos.");
 
         var token = _jwtTokenGenerator.GenerateToken(user);
         var refreshTokenValue = _refreshTokenGenerator.Generate();
-        var expiresInMinutes = 60;
+        var expiresInMinutes = _accessTokenLifetimeProvider.GetLifetimeInMinutes();
 
         await _refreshTokenRepository.CreateAsync(new RefreshToken
         {
@@ -55,13 +58,13 @@ public class LoginUseCase
         });
 
         var response = new LoginResponseDto(
+            user.Id, 
+            user.Name, 
+            user.Role, 
+            user.SalonId,
             token,
             refreshTokenValue,
-            expiresInMinutes,
-            user.Id,
-            user.Name,
-            user.Role,
-            user.SalonId
+            expiresInMinutes
         );
 
         return Result<LoginResponseDto>.Success(response);

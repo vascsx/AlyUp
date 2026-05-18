@@ -1,6 +1,6 @@
-using AlyUp.Application.DTOs.Auth;
-using AlyUp.Application.Interfaces;
 using AlyUp.Application.Security;
+using AlyUp.Application.UseCases.Auth;
+using AlyUp.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,30 +11,22 @@ namespace AlyUp.Api.Controllers;
 [Authorize(Policy = AppPolicies.RequireClient)]
 public class ClientController : ControllerBase
 {
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IAccessScopeService _accessScopeService;
-    private readonly IUserRepository _userRepository;
+    private readonly GetCurrentUserProfileUseCase _getCurrentUserProfileUseCase;
 
-    public ClientController(
-        ICurrentUserService currentUserService,
-        IAccessScopeService accessScopeService,
-        IUserRepository userRepository)
+    public ClientController(GetCurrentUserProfileUseCase getCurrentUserProfileUseCase)
     {
-        _currentUserService = currentUserService;
-        _accessScopeService = accessScopeService;
-        _userRepository = userRepository;
+        _getCurrentUserProfileUseCase = getCurrentUserProfileUseCase;
     }
 
     [HttpGet("me")]
     public async Task<IActionResult> Me()
     {
-        if (!_currentUserService.UserId.HasValue || !_accessScopeService.CanAccessUser(_currentUserService.UserId.Value))
-            return Unauthorized(new { message = "Usuario nao autenticado." });
+        var result = await _getCurrentUserProfileUseCase.ExecuteAsync(UserRole.Client);
+        if (!result.IsSuccess)
+        {
+            return Unauthorized(new { message = result.Error });
+        }
 
-        var user = await _userRepository.GetByIdAsync(_currentUserService.UserId.Value);
-        if (user is null)
-            return NotFound(new { message = "Usuario nao encontrado." });
-
-        return Ok(new UserResponseDto(user.Id, user.Name, user.Email, user.Role, user.SalonId));
+        return Ok(result.Value);
     }
 }

@@ -12,24 +12,26 @@ namespace AlyUp.Infrastructure.Security;
 public class JwtTokenGeneratorService : IJwtTokenGenerator
 {
     private readonly IConfiguration _configuration;
+    private readonly IAccessTokenLifetimeProvider _accessTokenLifetimeProvider;
 
-    public JwtTokenGeneratorService(IConfiguration configuration)
+    public JwtTokenGeneratorService(
+        IConfiguration configuration,
+        IAccessTokenLifetimeProvider accessTokenLifetimeProvider)
     {
         _configuration = configuration;
+        _accessTokenLifetimeProvider = accessTokenLifetimeProvider;
     }
 
     public string GenerateToken(User user)
     {
-        var lifetimeInMinutes = _configuration.GetValue<int?>("Jwt:AccessTokenMinutes") ?? 60;
-        if (lifetimeInMinutes <= 0)
-        {
-            throw new InvalidOperationException("JWT access token lifetime must be greater than zero.");
-        }
+        var lifetimeInMinutes = _accessTokenLifetimeProvider.GetLifetimeInMinutes();
 
+        var issuedAt = DateTime.UtcNow;
         var claims = new List<Claim>
         {
             new(AppClaimTypes.UserId, user.Id.ToString()),
             new(AppClaimTypes.Role, user.Role.ToString()),
+            new(AppClaimTypes.TokenIssuedAt, issuedAt.Ticks.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Role, user.Role.ToString())
         };
@@ -50,7 +52,7 @@ public class JwtTokenGeneratorService : IJwtTokenGenerator
             audience: _configuration["Jwt:Audience"]
                 ?? throw new InvalidOperationException("JWT audience not configured."),
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(lifetimeInMinutes),
+            expires: issuedAt.AddMinutes(lifetimeInMinutes),
             signingCredentials: creds
         );
 
