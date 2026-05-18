@@ -25,7 +25,14 @@ builder.Services.AddOpenApi();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(
+        connectionString,
+        npgsqlOptions =>
+        {
+            npgsqlOptions.MigrationsAssembly("AlyUp.Api");
+            npgsqlOptions.MigrationsHistoryTable("__ef_migrations_history");
+        }));
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAppAuthorization();
 builder.Services.AddHttpContextAccessor();
@@ -70,7 +77,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-await app.MigrateAndSeedAsync();
 
 app.Run();

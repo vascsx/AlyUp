@@ -1,5 +1,7 @@
 using AlyUp.Domain.Entities;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace AlyUp.Infrastructure.Data;
 
@@ -25,6 +27,7 @@ public class AppDbContext : DbContext
         ConfigureService(modelBuilder);
         ConfigureAppointment(modelBuilder);
         ConfigureRefreshToken(modelBuilder);
+        ApplySnakeCaseNamingConvention(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
     }
@@ -79,7 +82,7 @@ public class AppDbContext : DbContext
         builder.HasIndex(u => u.Email).IsUnique();
         builder.Property(u => u.Name).IsRequired().HasMaxLength(150);
         builder.Property(u => u.PasswordHash).IsRequired();
-        builder.Property(u => u.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(u => u.IsActive).IsRequired().ValueGeneratedNever();
 
         builder.HasOne(u => u.Salon)
             .WithMany(s => s.Users)
@@ -141,5 +144,104 @@ public class AppDbContext : DbContext
         builder.HasOne(rt => rt.User)
             .WithMany(u => u.RefreshTokens)
             .HasForeignKey(rt => rt.UserId);
+    }
+
+    private static void ApplySnakeCaseNamingConvention(ModelBuilder modelBuilder)
+    {
+        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        {
+            var tableName = entity.GetTableName();
+            if (!string.IsNullOrWhiteSpace(tableName))
+            {
+                entity.SetTableName(ToSnakeCase(tableName));
+            }
+
+            foreach (var property in entity.GetProperties())
+            {
+                var storeObjectIdentifier = StoreObjectIdentifier.Table(entity.GetTableName()!, entity.GetSchema());
+                var columnName = property.GetColumnName(storeObjectIdentifier);
+
+                if (!string.IsNullOrWhiteSpace(columnName))
+                {
+                    property.SetColumnName(ToSnakeCase(columnName));
+                }
+            }
+
+            foreach (var key in entity.GetKeys())
+            {
+                var keyName = key.GetName();
+                if (!string.IsNullOrWhiteSpace(keyName))
+                {
+                    key.SetName(ToSnakeCase(keyName));
+                }
+            }
+
+            foreach (var foreignKey in entity.GetForeignKeys())
+            {
+                var constraintName = foreignKey.GetConstraintName();
+                if (!string.IsNullOrWhiteSpace(constraintName))
+                {
+                    foreignKey.SetConstraintName(ToSnakeCase(constraintName));
+                }
+            }
+
+            foreach (var index in entity.GetIndexes())
+            {
+                var databaseName = index.GetDatabaseName();
+                if (!string.IsNullOrWhiteSpace(databaseName))
+                {
+                    index.SetDatabaseName(ToSnakeCase(databaseName));
+                }
+            }
+        }
+    }
+
+    private static string ToSnakeCase(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        var result = new System.Text.StringBuilder(value.Length + Math.Min(2, value.Length / 5));
+        var previousCategory = default(UnicodeCategory?);
+
+        for (var i = 0; i < value.Length; i++)
+        {
+            var currentChar = value[i];
+            if (currentChar == '_')
+            {
+                result.Append(currentChar);
+                previousCategory = null;
+                continue;
+            }
+
+            var currentCategory = char.GetUnicodeCategory(currentChar);
+            if (currentCategory == UnicodeCategory.UppercaseLetter)
+            {
+                var hasPrevious = i > 0;
+                var hasNext = i + 1 < value.Length;
+                var nextIsLower = hasNext && char.IsLower(value[i + 1]);
+
+                if (hasPrevious &&
+                    previousCategory != UnicodeCategory.SpaceSeparator &&
+                    previousCategory != null &&
+                    previousCategory != UnicodeCategory.ConnectorPunctuation &&
+                    (previousCategory != UnicodeCategory.UppercaseLetter || nextIsLower))
+                {
+                    result.Append('_');
+                }
+
+                result.Append(char.ToLowerInvariant(currentChar));
+            }
+            else
+            {
+                result.Append(char.ToLowerInvariant(currentChar));
+            }
+
+            previousCategory = currentCategory;
+        }
+
+        return result.ToString();
     }
 }
