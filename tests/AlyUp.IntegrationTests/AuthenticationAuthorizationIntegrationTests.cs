@@ -416,7 +416,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             email = "owner@email.com",
             password = "Password123!",
             salonName = "Salao A",
-            salonDocument = "123456789",
+            salonDocument = "52998224725",
             salonAddress = "Rua 1"
         });
 
@@ -448,7 +448,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             email = "owner@email.com",
             password = "Password123!",
             salonName = "  Salao   A  ",
-            salonDocument = "123.456.789",
+            salonDocument = "529.982.247-25",
             salonAddress = "  Rua   1  "
         });
 
@@ -458,7 +458,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         dbContext.Salons.Should().Contain(salon =>
-            salon.Document == "123456789" &&
+            salon.Document == "52998224725" &&
             salon.Name == "Salao A" &&
             salon.Address == "Rua 1");
 
@@ -487,7 +487,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             {
                 Id = Guid.NewGuid(),
                 Name = "Existing Salon",
-                Document = "123456789",
+                Document = "52998224725",
                 Address = "Rua 1"
             });
 
@@ -500,7 +500,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             email = "owner@email.com",
             password = "Password123!",
             salonName = "Salao A",
-            salonDocument = "123.456.789",
+            salonDocument = "529.982.247-25",
             salonAddress = "Rua 1"
         });
 
@@ -706,7 +706,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
                 email = "any@email.com",
                 password = "Password123!",
                 salonName = "Salao A",
-                salonDocument = "123456789",
+                salonDocument = "52998224725",
                 salonAddress = "Rua 1"
             });
 
@@ -774,7 +774,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             email = "owner@email.com",
             password = "Password123!",
             salonName = "Salao A",
-            salonDocument = "123456789",
+            salonDocument = "52998224725",
             salonAddress = "Rua 1"
         });
 
@@ -799,7 +799,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             email = "owner@email.com",
             password = "Password123!",
             salonName = "Salao A",
-            salonDocument = "123456789",
+            salonDocument = "52998224725",
             salonAddress = "Rua 1"
         });
 

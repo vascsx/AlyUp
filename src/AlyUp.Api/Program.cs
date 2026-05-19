@@ -90,6 +90,12 @@ builder.Services.AddScoped<CreateProfessionalUseCase>();
 
 var app = builder.Build();
 
+var skipMigrationsAndSeed = app.Configuration.GetValue<bool>("Database:SkipMigrationsAndSeed");
+if (!skipMigrationsAndSeed)
+{
+    await app.MigrateAndSeedAsync();
+}
+
 app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())

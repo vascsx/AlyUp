@@ -8,6 +8,7 @@ namespace AlyUp.Infrastructure.Data;
 
 public class AppDbContext : DbContext
 {
+    private static readonly TimeSpan AppUtcOffset = TimeSpan.FromHours(-3);
     private readonly ITenantContext _tenantContext;
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
@@ -36,10 +37,35 @@ public class AppDbContext : DbContext
         ConfigureService(modelBuilder);
         ConfigureAppointment(modelBuilder);
         ConfigureRefreshToken(modelBuilder);
+        ConfigureAuditDateColumns(modelBuilder);
         ApplyTenantQueryFilters(modelBuilder);
         ApplySnakeCaseNamingConvention(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
+    }
+
+    public override int SaveChanges()
+    {
+        ApplyAuditDateTimeRules();
+        return base.SaveChanges();
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyAuditDateTimeRules();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyAuditDateTimeRules();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyAuditDateTimeRules();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     private bool ShouldApplyTenantFilter => _tenantContext.ShouldApplyTenantFilter;
@@ -173,6 +199,90 @@ public class AppDbContext : DbContext
         builder.HasOne(rt => rt.User)
             .WithMany(u => u.RefreshTokens)
             .HasForeignKey(rt => rt.UserId);
+    }
+
+    private static void ConfigureAuditDateColumns(ModelBuilder modelBuilder)
+    {
+        foreach (var entity in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entity.GetProperties())
+            {
+                var isAuditDateProperty =
+                    property.Name is "CreatedAt" or "UpdatedAt" &&
+                    (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?));
+
+                if (isAuditDateProperty)
+                {
+                    property.SetColumnType("timestamp without time zone");
+                }
+            }
+        }
+    }
+
+    private void ApplyAuditDateTimeRules()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified))
+            {
+                continue;
+            }
+
+            ApplyCreatedAtRule(entry);
+            ApplyUpdatedAtRule(entry);
+        }
+    }
+
+    private void ApplyCreatedAtRule(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    {
+        var createdAtProperty = entry.Properties.FirstOrDefault(property => property.Metadata.Name == "CreatedAt");
+        if (createdAtProperty is null)
+        {
+            return;
+        }
+
+        if (entry.State == EntityState.Added)
+        {
+            var currentValue = createdAtProperty.CurrentValue as DateTime?;
+            createdAtProperty.CurrentValue = ConvertToAppLocalDateTime(currentValue ?? DateTime.UtcNow);
+            return;
+        }
+
+        createdAtProperty.IsModified = false;
+    }
+
+    private void ApplyUpdatedAtRule(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    {
+        var updatedAtProperty = entry.Properties.FirstOrDefault(property => property.Metadata.Name == "UpdatedAt");
+        if (updatedAtProperty is null)
+        {
+            return;
+        }
+
+        if (entry.State == EntityState.Modified)
+        {
+            updatedAtProperty.CurrentValue = ConvertToAppLocalDateTime(DateTime.UtcNow);
+            return;
+        }
+
+        var currentValue = updatedAtProperty.CurrentValue as DateTime?;
+        if (currentValue.HasValue)
+        {
+            updatedAtProperty.CurrentValue = ConvertToAppLocalDateTime(currentValue.Value);
+        }
+    }
+
+    private static DateTime ConvertToAppLocalDateTime(DateTime value)
+    {
+        var normalizedUtc = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+        var localValue = normalizedUtc + AppUtcOffset;
+        return DateTime.SpecifyKind(localValue, DateTimeKind.Unspecified);
     }
 
     private static void ApplySnakeCaseNamingConvention(ModelBuilder modelBuilder)
