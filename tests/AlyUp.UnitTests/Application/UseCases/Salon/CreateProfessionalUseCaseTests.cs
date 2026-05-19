@@ -56,7 +56,7 @@ public class CreateProfessionalUseCaseTests
         result.Value.Should().NotBeEmpty();
 
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<User>(user =>
-            user.Name == "Ana Silva" &&
+            user.Name == "  Ana Silva  " &&
             user.Email == "ana.silva@email.com" &&
             user.PasswordHash == "hashed-password" &&
             user.Role == UserRole.Professional &&
@@ -77,7 +77,7 @@ public class CreateProfessionalUseCaseTests
         var result = await _sut.ExecuteAsync(request, salonId);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Salao nao encontrado.");
+        result.Error.Should().Be("O salão informado não foi encontrado.");
 
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<User>()), Times.Never);
     }
@@ -99,7 +99,7 @@ public class CreateProfessionalUseCaseTests
         var result = await _sut.ExecuteAsync(request, salonId);
 
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Email ja cadastrado.");
+        result.Error.Should().Be("Já existe um profissional cadastrado com este e-mail.");
 
         _passwordHasherMock.Verify(hasher => hasher.Hash(It.IsAny<string>()), Times.Never);
         _userRepositoryMock.Verify(repository => repository.CreateAsync(It.IsAny<User>()), Times.Never);

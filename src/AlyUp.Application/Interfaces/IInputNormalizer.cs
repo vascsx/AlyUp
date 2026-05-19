@@ -4,5 +4,6 @@ public interface IInputNormalizer
 {
     string NormalizeEmail(string email);
     string NormalizeText(string value);
+    string NormalizeDocument(string value);
     string NormalizeNullableText(string? value);
 }

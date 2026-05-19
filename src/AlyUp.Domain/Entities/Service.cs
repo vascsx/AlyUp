@@ -1,6 +1,6 @@
 ﻿namespace AlyUp.Domain.Entities;
 
-public class Service
+public class Service : ISalonScopedEntity
 {
     public Guid Id { get; set; }
 

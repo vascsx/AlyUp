@@ -24,9 +24,17 @@ public class ProfessionalController : ControllerBase
         var result = await _getCurrentUserProfileUseCase.ExecuteAsync(UserRole.Professional);
         if (!result.IsSuccess)
         {
+            if (IsForbidden(result.Error))
+            {
+                return Forbid();
+            }
+
             return Unauthorized(new { message = result.Error });
         }
 
         return Ok(result.Value);
     }
+
+    private static bool IsForbidden(string? error) =>
+        string.Equals(error, "Usuário não autorizado.", StringComparison.Ordinal);
 }

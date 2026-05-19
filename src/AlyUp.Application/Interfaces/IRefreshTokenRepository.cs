@@ -5,6 +5,6 @@ namespace AlyUp.Application.Interfaces;
 public interface IRefreshTokenRepository
 {
     Task CreateAsync(RefreshToken refreshToken);
-    Task<RefreshToken?> GetByTokenAsync(string token);
+    Task<RefreshToken?> GetByTokenHashAsync(string tokenHash);
     Task UpdateAsync(RefreshToken refreshToken);
 }

@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AlyUp.Application.DTOs.Auth;
+using AlyUp.Application.Interfaces;
 using AlyUp.Domain.Entities;
 using AlyUp.Domain.Enums;
 using AlyUp.Infrastructure.Data;
@@ -63,6 +64,32 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     }
 
     [Fact]
+    public async Task RegisterClient_Should_ReturnConflict_When_EmailAlreadyExists()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var passwordHasher = new BCryptPasswordHasher();
+        await _factory.SeedAsync(new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Existing Client",
+            Email = "existing.client@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        });
+
+        var response = await _client.PostAsJsonAsync("/api/Auth/registerClient", new
+        {
+            name = "New Client",
+            email = " existing.client@email.com ",
+            password = "Password123!"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
     public async Task Login_Should_ReturnAccessAndRefreshTokens_WithoutSensitiveClaims()
     {
         await _factory.ResetDatabaseAsync();
@@ -102,7 +129,8 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
 
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        dbContext.RefreshTokens.Should().Contain(token => token.UserId == user.Id && token.Token == payload.RefreshToken && token.Revoked == null);
+        var refreshTokenHasher = scope.ServiceProvider.GetRequiredService<IRefreshTokenHasher>();
+        dbContext.RefreshTokens.Should().Contain(token => token.UserId == user.Id && token.TokenHash == refreshTokenHasher.Hash(payload.RefreshToken) && token.Revoked == null);
     }
 
     [Fact]
@@ -173,6 +201,54 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     }
 
     [Fact]
+    public async Task Login_Should_NotShareRateLimitBetweenDifferentEmails_OnSameIp()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var passwordHasher = new BCryptPasswordHasher();
+        var firstUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "First User",
+            Email = "first@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        };
+
+        var secondUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Name = "Second User",
+            Email = "second@email.com",
+            PasswordHash = passwordHasher.Hash("Password123!"),
+            Role = UserRole.Client,
+            IsActive = true
+        };
+
+        await _factory.SeedAsync(firstUser, secondUser);
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var response = await _client.PostAsJsonAsync("/api/Auth/login", new
+            {
+                email = "first@email.com",
+                password = "Password123!"
+            });
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        var secondUserResponse = await _client.PostAsJsonAsync("/api/Auth/login", new
+        {
+            email = " second@email.com ",
+            password = "Password123!"
+        });
+
+        secondUserResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task Refresh_Should_RotateRefreshToken_And_RevokePreviousOne()
     {
         await _factory.ResetDatabaseAsync();
@@ -212,8 +288,9 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
 
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        dbContext.RefreshTokens.Should().Contain(token => token.Token == loginPayload.RefreshToken && token.Revoked != null);
-        dbContext.RefreshTokens.Should().Contain(token => token.Token == refreshPayload.RefreshToken && token.Revoked == null);
+        var refreshTokenHasher = scope.ServiceProvider.GetRequiredService<IRefreshTokenHasher>();
+        dbContext.RefreshTokens.Should().Contain(token => token.TokenHash == refreshTokenHasher.Hash(loginPayload.RefreshToken) && token.Revoked != null);
+        dbContext.RefreshTokens.Should().Contain(token => token.TokenHash == refreshTokenHasher.Hash(refreshPayload.RefreshToken) && token.Revoked == null);
     }
 
     [Fact]
@@ -243,9 +320,11 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
         loginPayload.Should().NotBeNull();
 
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginPayload!.Token);
+
         var logoutResponse = await _client.PostAsJsonAsync("/api/Auth/logout", new
         {
-            refreshToken = loginPayload!.RefreshToken
+            refreshToken = loginPayload.RefreshToken
         });
 
         logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -259,7 +338,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     }
 
     [Fact]
-    public async Task Logout_Should_RevokePreviouslyIssuedAccessToken()
+    public async Task Logout_Should_KeepPreviouslyIssuedAccessToken_Valid_Until_Expiry()
     {
         await _factory.ResetDatabaseAsync();
 
@@ -285,18 +364,31 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         var loginPayload = await loginResponse.Content.ReadFromJsonAsync<LoginResponseDto>();
         loginPayload.Should().NotBeNull();
 
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginPayload!.Token);
+
         var logoutResponse = await _client.PostAsJsonAsync("/api/Auth/logout", new
         {
-            refreshToken = loginPayload!.RefreshToken
+            refreshToken = loginPayload.RefreshToken
         });
 
         logoutResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginPayload.Token);
-
         var profileResponse = await _client.GetAsync("/api/Client/me");
 
-        profileResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        profileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Logout_Should_RequireAuthentication()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/Auth/logout", new
+        {
+            refreshToken = "any-refresh-token"
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -352,15 +444,67 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
 
         var response = await _client.PostAsJsonAsync("/api/Admin/registerSalonOwner", new
         {
+            name = "  Owner   Name  ",
+            email = "owner@email.com",
+            password = "Password123!",
+            salonName = "  Salao   A  ",
+            salonDocument = "123.456.789",
+            salonAddress = "  Rua   1  "
+        });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        dbContext.Salons.Should().Contain(salon =>
+            salon.Document == "123456789" &&
+            salon.Name == "Salao A" &&
+            salon.Address == "Rua 1");
+
+        dbContext.Users.Should().Contain(user =>
+            user.Email == "owner@email.com" &&
+            user.Name == "Owner Name");
+    }
+
+    [Fact]
+    public async Task AdminEndpoint_Should_ReturnConflict_WhenSalonOwnerOrSalonAlreadyExists()
+    {
+        await _factory.ResetDatabaseAsync();
+
+        var masterUserId = Guid.NewGuid();
+        await _factory.SeedAsync(
+            new User
+            {
+                Id = masterUserId,
+                Name = "Master User",
+                Email = "master.conflict@email.com",
+                PasswordHash = "hash",
+                Role = UserRole.Master,
+                IsActive = true
+            },
+            new Salon
+            {
+                Id = Guid.NewGuid(),
+                Name = "Existing Salon",
+                Document = "123456789",
+                Address = "Rua 1"
+            });
+
+        var masterToken = _factory.CreateToken(masterUserId, UserRole.Master.ToString());
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", masterToken);
+
+        var response = await _client.PostAsJsonAsync("/api/Admin/registerSalonOwner", new
+        {
             name = "Owner",
             email = "owner@email.com",
             password = "Password123!",
             salonName = "Salao A",
-            salonDocument = "123456789",
+            salonDocument = "123.456.789",
             salonAddress = "Rua 1"
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Fact]

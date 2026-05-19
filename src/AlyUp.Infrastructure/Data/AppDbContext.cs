@@ -1,4 +1,5 @@
 using AlyUp.Domain.Entities;
+using AlyUp.Application.Interfaces;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -7,9 +8,17 @@ namespace AlyUp.Infrastructure.Data;
 
 public class AppDbContext : DbContext
 {
+    private readonly ITenantContext _tenantContext;
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
+        : this(options, new NoTenantContext())
+    {
+    }
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext tenantContext)
         : base(options)
     {
+        _tenantContext = tenantContext;
     }
 
     public DbSet<Client> Clients => Set<Client>();
@@ -27,9 +36,25 @@ public class AppDbContext : DbContext
         ConfigureService(modelBuilder);
         ConfigureAppointment(modelBuilder);
         ConfigureRefreshToken(modelBuilder);
+        ApplyTenantQueryFilters(modelBuilder);
         ApplySnakeCaseNamingConvention(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
+    }
+
+    private bool ShouldApplyTenantFilter => _tenantContext.ShouldApplyTenantFilter;
+    private Guid TenantSalonId => _tenantContext.SalonId ?? Guid.Empty;
+
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Client>()
+            .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
+
+        modelBuilder.Entity<Service>()
+            .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
+
+        modelBuilder.Entity<Appointment>()
+            .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
     }
 
     private static void ConfigureClient(ModelBuilder modelBuilder)
@@ -137,8 +162,12 @@ public class AppDbContext : DbContext
         var builder = modelBuilder.Entity<RefreshToken>();
         builder.ToTable("refresh_tokens");
         builder.HasKey(rt => rt.Id);
-        builder.Property(rt => rt.Token).IsRequired();
-        builder.HasIndex(rt => rt.Token).IsUnique();
+        builder.Property(rt => rt.SessionId).IsRequired();
+        builder.Property(rt => rt.FamilyId).IsRequired();
+        builder.Property(rt => rt.TokenHash).IsRequired();
+        builder.HasIndex(rt => rt.TokenHash).IsUnique();
+        builder.HasIndex(rt => rt.FamilyId);
+        builder.HasIndex(rt => rt.SessionId);
         builder.Property(rt => rt.Created).IsRequired();
         builder.Property(rt => rt.Expires).IsRequired();
         builder.HasOne(rt => rt.User)
@@ -243,5 +272,11 @@ public class AppDbContext : DbContext
         }
 
         return result.ToString();
+    }
+
+    private sealed class NoTenantContext : ITenantContext
+    {
+        public bool ShouldApplyTenantFilter => false;
+        public Guid? SalonId => null;
     }
 }

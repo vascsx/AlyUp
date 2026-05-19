@@ -14,6 +14,7 @@ public class LoginUseCaseTests
     private readonly Mock<IPasswordHasher> _passwordHasherMock = new();
     private readonly Mock<IJwtTokenGenerator> _jwtTokenGeneratorMock = new();
     private readonly Mock<IRefreshTokenGenerator> _refreshTokenGeneratorMock = new();
+    private readonly Mock<IRefreshTokenHasher> _refreshTokenHasherMock = new();
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock = new();
     private readonly Mock<IInputNormalizer> _inputNormalizerMock = new();
     private readonly Mock<IAccessTokenLifetimeProvider> _accessTokenLifetimeProviderMock = new();
@@ -30,6 +31,10 @@ public class LoginUseCaseTests
             .Setup(generator => generator.Generate())
             .Returns("refresh-token");
 
+        _refreshTokenHasherMock
+            .Setup(hasher => hasher.Hash("refresh-token"))
+            .Returns("refresh-token-hash");
+
         _accessTokenLifetimeProviderMock
             .Setup(provider => provider.GetLifetimeInMinutes())
             .Returns(30);
@@ -43,6 +48,7 @@ public class LoginUseCaseTests
             _passwordHasherMock.Object,
             _jwtTokenGeneratorMock.Object,
             _refreshTokenGeneratorMock.Object,
+            _refreshTokenHasherMock.Object,
             _refreshTokenRepositoryMock.Object,
             _inputNormalizerMock.Object,
             _accessTokenLifetimeProviderMock.Object,
@@ -88,7 +94,9 @@ public class LoginUseCaseTests
 
         _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<RefreshToken>(token =>
             token.UserId == user.Id &&
-            token.Token == "refresh-token" &&
+            token.TokenHash == "refresh-token-hash" &&
+            token.SessionId != Guid.Empty &&
+            token.FamilyId != Guid.Empty &&
             token.Revoked == null)), Times.Once);
     }
 

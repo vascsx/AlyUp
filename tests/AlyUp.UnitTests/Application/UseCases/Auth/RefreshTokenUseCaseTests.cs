@@ -14,6 +14,7 @@ public class RefreshTokenUseCaseTests
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
     private readonly Mock<IJwtTokenGenerator> _jwtTokenGeneratorMock = new();
     private readonly Mock<IRefreshTokenGenerator> _refreshTokenGeneratorMock = new();
+    private readonly Mock<IRefreshTokenHasher> _refreshTokenHasherMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<IAccessTokenLifetimeProvider> _accessTokenLifetimeProviderMock = new();
     private readonly Mock<IRefreshTokenLifetimeProvider> _refreshTokenLifetimeProviderMock = new();
@@ -22,6 +23,8 @@ public class RefreshTokenUseCaseTests
     public RefreshTokenUseCaseTests()
     {
         _refreshTokenGeneratorMock.Setup(generator => generator.Generate()).Returns("new-refresh-token");
+        _refreshTokenHasherMock.Setup(hasher => hasher.Hash("old-refresh-token")).Returns("old-refresh-token-hash");
+        _refreshTokenHasherMock.Setup(hasher => hasher.Hash("new-refresh-token")).Returns("new-refresh-token-hash");
         _jwtTokenGeneratorMock.Setup(generator => generator.GenerateToken(It.IsAny<User>())).Returns("new-access-token");
         _accessTokenLifetimeProviderMock.Setup(provider => provider.GetLifetimeInMinutes()).Returns(30);
         _refreshTokenLifetimeProviderMock.Setup(provider => provider.GetLifetimeInDays()).Returns(30);
@@ -34,6 +37,7 @@ public class RefreshTokenUseCaseTests
             _userRepositoryMock.Object,
             _jwtTokenGeneratorMock.Object,
             _refreshTokenGeneratorMock.Object,
+            _refreshTokenHasherMock.Object,
             _unitOfWorkMock.Object,
             _accessTokenLifetimeProviderMock.Object,
             _refreshTokenLifetimeProviderMock.Object);
@@ -54,12 +58,14 @@ public class RefreshTokenUseCaseTests
         var refreshToken = new RefreshToken
         {
             UserId = user.Id,
-            Token = "old-refresh-token",
+            SessionId = Guid.NewGuid(),
+            FamilyId = Guid.NewGuid(),
+            TokenHash = "old-refresh-token-hash",
             Created = DateTime.UtcNow.AddDays(-1),
             Expires = DateTime.UtcNow.AddDays(1)
         };
 
-        _refreshTokenRepositoryMock.Setup(repository => repository.GetByTokenAsync("old-refresh-token")).ReturnsAsync(refreshToken);
+        _refreshTokenRepositoryMock.Setup(repository => repository.GetByTokenHashAsync("old-refresh-token-hash")).ReturnsAsync(refreshToken);
         _userRepositoryMock.Setup(repository => repository.GetByIdAsync(user.Id)).ReturnsAsync(user);
 
         var result = await _sut.ExecuteAsync(new RefreshTokenRequestDto("old-refresh-token"));
@@ -74,13 +80,16 @@ public class RefreshTokenUseCaseTests
         _refreshTokenRepositoryMock.Verify(repository => repository.UpdateAsync(refreshToken), Times.Once);
         _refreshTokenRepositoryMock.Verify(repository => repository.CreateAsync(It.Is<RefreshToken>(token =>
             token.UserId == user.Id &&
-            token.Token == "new-refresh-token")), Times.Once);
+            token.TokenHash == "new-refresh-token-hash" &&
+            token.SessionId == refreshToken.SessionId &&
+            token.FamilyId == refreshToken.FamilyId)), Times.Once);
     }
 
     [Fact]
     public async Task Should_ReturnFailure_When_RefreshTokenIsInvalid()
     {
-        _refreshTokenRepositoryMock.Setup(repository => repository.GetByTokenAsync("invalid")).ReturnsAsync((RefreshToken?)null);
+        _refreshTokenHasherMock.Setup(hasher => hasher.Hash("invalid")).Returns("invalid-hash");
+        _refreshTokenRepositoryMock.Setup(repository => repository.GetByTokenHashAsync("invalid-hash")).ReturnsAsync((RefreshToken?)null);
 
         var result = await _sut.ExecuteAsync(new RefreshTokenRequestDto("invalid"));
 

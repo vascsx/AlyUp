@@ -58,7 +58,7 @@ public class AuthController : ControllerBase
         return Ok(result.Value);
     }
 
-    [AllowAnonymous]
+    [Authorize]
     [EnableRateLimiting(AppRateLimitPolicies.AuthLogout)]
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequestDto request)
@@ -76,6 +76,11 @@ public class AuthController : ControllerBase
 
         if (!result.IsSuccess)
         {
+            if (IsConflict(result.Error))
+            {
+                return Conflict(new { message = result.Error });
+            }
+
             return BadRequest(new { message = result.Error });
         }
 
@@ -85,4 +90,7 @@ public class AuthController : ControllerBase
             id = result.Value
         });
     }
+
+    private static bool IsConflict(string? error) =>
+        !string.IsNullOrWhiteSpace(error) && error.Contains("Já existe", StringComparison.OrdinalIgnoreCase);
 }

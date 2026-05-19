@@ -51,7 +51,12 @@ public class ExceptionMiddleware
         // Exceções de Domínio
         if (exception is DomainException domainException)
         {
-            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            context.Response.StatusCode = exception switch
+            {
+                EmailAlreadyExistsException => (int)HttpStatusCode.Conflict,
+                SalonDocumentAlreadyExistsException => (int)HttpStatusCode.Conflict,
+                _ => (int)HttpStatusCode.BadRequest
+            };
             var response = new { message = domainException.Message };
             return context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }

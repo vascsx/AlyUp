@@ -65,6 +65,24 @@ public static class RateLimitingExtensions
     private static string GetPartitionKey(HttpContext context, string policyName)
     {
         var remoteIp = context.Connection.RemoteIpAddress?.ToString();
-        return $"{policyName}:{remoteIp ?? "unknown"}";
+        var flowIdentifier = policyName switch
+        {
+            AppRateLimitPolicies.AuthLogin => GetContextValue(context, AuthRateLimitContextKeys.Email) ?? "unknown",
+            AppRateLimitPolicies.AuthRegisterClient => GetContextValue(context, AuthRateLimitContextKeys.Email) ?? "unknown",
+            AppRateLimitPolicies.AuthRefresh => GetContextValue(context, AuthRateLimitContextKeys.RefreshTokenHash) ?? "unknown",
+            AppRateLimitPolicies.AuthLogout => GetContextValue(context, AuthRateLimitContextKeys.RefreshTokenHash) ?? "unknown",
+            _ => "unknown"
+        };
+
+        return $"{policyName}:{remoteIp ?? "unknown"}:{flowIdentifier}";
+    }
+
+    private static string? GetContextValue(HttpContext context, string key) =>
+        context.Items.TryGetValue(key, out var value) ? value as string : null;
+
+    private static class AuthRateLimitContextKeys
+    {
+        public const string Email = "auth-rate-limit-email";
+        public const string RefreshTokenHash = "auth-rate-limit-refresh-token-hash";
     }
 }

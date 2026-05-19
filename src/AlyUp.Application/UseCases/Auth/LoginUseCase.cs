@@ -11,6 +11,7 @@ public class LoginUseCase
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IRefreshTokenGenerator _refreshTokenGenerator;
+    private readonly IRefreshTokenHasher _refreshTokenHasher;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IInputNormalizer _inputNormalizer;
     private readonly IAccessTokenLifetimeProvider _accessTokenLifetimeProvider;
@@ -21,6 +22,7 @@ public class LoginUseCase
         IPasswordHasher passwordHasher,
         IJwtTokenGenerator jwtTokenGenerator,
         IRefreshTokenGenerator refreshTokenGenerator,
+        IRefreshTokenHasher refreshTokenHasher,
         IRefreshTokenRepository refreshTokenRepository,
         IInputNormalizer inputNormalizer,
         IAccessTokenLifetimeProvider accessTokenLifetimeProvider,
@@ -30,6 +32,7 @@ public class LoginUseCase
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
         _refreshTokenGenerator = refreshTokenGenerator;
+        _refreshTokenHasher = refreshTokenHasher;
         _refreshTokenRepository = refreshTokenRepository;
         _inputNormalizer = inputNormalizer;
         _accessTokenLifetimeProvider = accessTokenLifetimeProvider;
@@ -50,15 +53,21 @@ public class LoginUseCase
 
         var token = _jwtTokenGenerator.GenerateToken(user);
         var refreshTokenValue = _refreshTokenGenerator.Generate();
+        var refreshTokenHash = _refreshTokenHasher.Hash(refreshTokenValue);
         var expiresInMinutes = _accessTokenLifetimeProvider.GetLifetimeInMinutes();
         var refreshTokenExpiresInDays = _refreshTokenLifetimeProvider.GetLifetimeInDays();
+        var now = DateTime.UtcNow;
+        var sessionId = Guid.NewGuid();
+        var familyId = Guid.NewGuid();
 
         await _refreshTokenRepository.CreateAsync(new RefreshToken
         {
             UserId = user.Id,
-            Token = refreshTokenValue,
-            Created = DateTime.UtcNow,
-            Expires = DateTime.UtcNow.AddDays(refreshTokenExpiresInDays)
+            SessionId = sessionId,
+            FamilyId = familyId,
+            TokenHash = refreshTokenHash,
+            Created = now,
+            Expires = now.AddDays(refreshTokenExpiresInDays)
         });
 
         var response = new LoginResponseDto(

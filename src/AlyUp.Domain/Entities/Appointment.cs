@@ -2,7 +2,7 @@
 
 namespace AlyUp.Domain.Entities;
 
-public class Appointment
+public class Appointment : ISalonScopedEntity
 {
     public Guid Id { get; set; }
 

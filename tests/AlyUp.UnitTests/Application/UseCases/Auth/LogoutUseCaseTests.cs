@@ -10,30 +10,39 @@ namespace AlyUp.UnitTests.Application.UseCases.Auth;
 public class LogoutUseCaseTests
 {
     private readonly Mock<IRefreshTokenRepository> _refreshTokenRepositoryMock = new();
-    private readonly Mock<IUserRepository> _userRepositoryMock = new();
+    private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
+    private readonly Mock<IRefreshTokenHasher> _refreshTokenHasherMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly LogoutUseCase _sut;
 
     public LogoutUseCaseTests()
     {
+        _currentUserServiceMock.Setup(service => service.IsAuthenticated).Returns(true);
+        _currentUserServiceMock.Setup(service => service.UserId).Returns(Guid.NewGuid());
+
         _unitOfWorkMock
             .Setup(unitOfWork => unitOfWork.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()))
             .Returns<Func<Task>, CancellationToken>(async (action, _) => await action());
 
+        _refreshTokenHasherMock.Setup(hasher => hasher.Hash("refresh-token")).Returns("refresh-token-hash");
+
         _sut = new LogoutUseCase(
             _refreshTokenRepositoryMock.Object,
-            _userRepositoryMock.Object,
+            _currentUserServiceMock.Object,
+            _refreshTokenHasherMock.Object,
             _unitOfWorkMock.Object);
     }
 
     [Fact]
     public async Task Should_RevokeRefreshToken_When_ActiveTokenExists()
     {
-        var userId = Guid.NewGuid();
+        var userId = _currentUserServiceMock.Object.UserId!.Value;
         var refreshToken = new RefreshToken
         {
             UserId = userId,
-            Token = "refresh-token",
+            SessionId = Guid.NewGuid(),
+            FamilyId = Guid.NewGuid(),
+            TokenHash = "refresh-token-hash",
             Created = DateTime.UtcNow.AddDays(-1),
             Expires = DateTime.UtcNow.AddDays(1)
         };
@@ -46,18 +55,26 @@ public class LogoutUseCaseTests
         };
 
         _refreshTokenRepositoryMock
-            .Setup(repository => repository.GetByTokenAsync("refresh-token"))
+            .Setup(repository => repository.GetByTokenHashAsync("refresh-token-hash"))
             .ReturnsAsync(refreshToken);
-        _userRepositoryMock
-            .Setup(repository => repository.GetByIdAsync(userId))
-            .ReturnsAsync(user);
 
         var result = await _sut.ExecuteAsync(new LogoutRequestDto("refresh-token"));
 
         result.IsSuccess.Should().BeTrue();
         refreshToken.Revoked.Should().NotBeNull();
-        user.UpdatedAt.Should().Be(refreshToken.Revoked);
         _refreshTokenRepositoryMock.Verify(repository => repository.UpdateAsync(refreshToken), Times.Once);
-        _userRepositoryMock.Verify(repository => repository.UpdateAsync(user), Times.Once);
+    }
+
+    [Fact]
+    public async Task Should_Fail_When_UserIsNotAuthenticated()
+    {
+        _currentUserServiceMock.Setup(service => service.IsAuthenticated).Returns(false);
+        _currentUserServiceMock.Setup(service => service.UserId).Returns((Guid?)null);
+
+        var result = await _sut.ExecuteAsync(new LogoutRequestDto("refresh-token"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Be("Usuário não autenticado.");
+        _refreshTokenRepositoryMock.Verify(repository => repository.UpdateAsync(It.IsAny<RefreshToken>()), Times.Never);
     }
 }

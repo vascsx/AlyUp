@@ -25,6 +25,11 @@ public class AdminController : ControllerBase
 
         if (!result.IsSuccess)
         {
+            if (IsConflict(result.Error))
+            {
+                return Conflict(new { message = result.Error });
+            }
+
             return BadRequest(new { message = result.Error });
         }
 
@@ -34,4 +39,7 @@ public class AdminController : ControllerBase
             id = result.Value
         });
     }
+
+    private static bool IsConflict(string? error) =>
+        !string.IsNullOrWhiteSpace(error) && error.Contains("Já existe", StringComparison.OrdinalIgnoreCase);
 }

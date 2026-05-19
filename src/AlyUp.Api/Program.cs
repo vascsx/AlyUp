@@ -11,7 +11,9 @@ using AlyUp.Infrastructure.Middleware;
 using AlyUp.Infrastructure.Repositories;
 using AlyUp.Infrastructure.Security;
 using FluentValidation;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +35,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
             npgsqlOptions.MigrationsAssembly("AlyUp.Api");
             npgsqlOptions.MigrationsHistoryTable("__ef_migrations_history");
         }));
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownProxies.Clear();
+    options.KnownIPNetworks.Clear();
+
+    foreach (var knownProxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? Array.Empty<string>())
+    {
+        if (IPAddress.TryParse(knownProxy, out var proxyAddress))
+        {
+            options.KnownProxies.Add(proxyAddress);
+        }
+    }
+});
+
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAppAuthorization();
 builder.Services.AddAppRateLimiting();
@@ -43,12 +61,14 @@ builder.Services.AddScoped<ISalonRepository, SalonRepository>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
+builder.Services.AddScoped<IRefreshTokenHasher, Sha256RefreshTokenHasher>();
 builder.Services.AddScoped<IAccessTokenLifetimeProvider, AccessTokenLifetimeProvider>();
 builder.Services.AddScoped<IRefreshTokenLifetimeProvider, RefreshTokenLifetimeProvider>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGeneratorService>();
 builder.Services.AddScoped<IRefreshTokenGenerator, RefreshTokenGenerator>();
 builder.Services.AddScoped<IInputNormalizer, InputNormalizer>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<IAccessScopeService, AccessScopeService>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddScoped<ValidationActionFilter>();
@@ -70,6 +90,8 @@ builder.Services.AddScoped<CreateProfessionalUseCase>();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -77,6 +99,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<AuthRateLimitContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<AuthenticatedUserValidationMiddleware>();
