@@ -24,6 +24,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<Service> Services => Set<Service>();
+    public DbSet<ProfessionalAvailability> ProfessionalAvailabilities => Set<ProfessionalAvailability>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Salon> Salons => Set<Salon>();
@@ -35,6 +36,7 @@ public class AppDbContext : DbContext
         ConfigureUser(modelBuilder);
         ConfigureSalon(modelBuilder);
         ConfigureService(modelBuilder);
+        ConfigureProfessionalAvailability(modelBuilder);
         ConfigureAppointment(modelBuilder);
         ConfigureRefreshToken(modelBuilder);
         ConfigureAuditDateColumns(modelBuilder);
@@ -77,6 +79,9 @@ public class AppDbContext : DbContext
             .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
 
         modelBuilder.Entity<Service>()
+            .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
+
+        modelBuilder.Entity<ProfessionalAvailability>()
             .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
 
         modelBuilder.Entity<Appointment>()
@@ -158,12 +163,39 @@ public class AppDbContext : DbContext
         builder.ToTable("services");
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Name).IsRequired().HasMaxLength(150);
+        builder.Property(s => s.Description).IsRequired().HasMaxLength(500);
         builder.Property(s => s.Price).IsRequired();
         builder.Property(s => s.DurationInMinutes).IsRequired();
+        builder.Property(s => s.IsActive).IsRequired();
+        builder.Property(s => s.CreatedAt).IsRequired();
 
         builder.HasOne(s => s.Salon)
             .WithMany(salon => salon.Services)
             .HasForeignKey(s => s.SalonId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    private static void ConfigureProfessionalAvailability(ModelBuilder modelBuilder)
+    {
+        var builder = modelBuilder.Entity<ProfessionalAvailability>();
+        builder.ToTable("professional_availabilities");
+        builder.HasKey(availability => availability.Id);
+        builder.Property(availability => availability.DayOfWeek).IsRequired();
+        builder.Property(availability => availability.StartTime).HasColumnType("time without time zone").IsRequired();
+        builder.Property(availability => availability.EndTime).HasColumnType("time without time zone").IsRequired();
+        builder.Property(availability => availability.IsActive).IsRequired();
+        builder.Property(availability => availability.CreatedAt).IsRequired();
+        builder.HasIndex(availability => new { availability.ProfessionalId, availability.DayOfWeek });
+        builder.HasIndex(availability => availability.SalonId);
+
+        builder.HasOne(availability => availability.Professional)
+            .WithMany(user => user.ProfessionalAvailabilities)
+            .HasForeignKey(availability => availability.ProfessionalId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(availability => availability.Salon)
+            .WithMany(salon => salon.ProfessionalAvailabilities)
+            .HasForeignKey(availability => availability.SalonId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 

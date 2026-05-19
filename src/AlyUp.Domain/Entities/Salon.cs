@@ -11,5 +11,6 @@ public class Salon
     public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<Client> Clients { get; set; } = new List<Client>();
     public ICollection<Service> Services { get; set; } = new List<Service>();
+    public ICollection<ProfessionalAvailability> ProfessionalAvailabilities { get; set; } = new List<ProfessionalAvailability>();
     public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 }

@@ -1,0 +1,717 @@
+{
+  "info": {
+    "_postman_id": "b1d4c8f2-9c30-4d5b-9a25-7c7f5a9b1f11",
+    "name": "AlyUp API",
+    "description": "Postman collection for the AlyUp ASP.NET Core API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "expiresInMinutes",
+      "value": "60"
+    },
+    {
+      "key": "masterEmail",
+      "value": "admin@alyup.com"
+    },
+    {
+      "key": "masterPassword",
+      "value": "Password123!"
+    },
+    {
+      "key": "salonId",
+      "value": ""
+    },
+    {
+      "key": "serviceId",
+      "value": ""
+    },
+    {
+      "key": "professionalId",
+      "value": ""
+    },
+    {
+      "key": "availabilityId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) pm.collectionVariables.set('accessToken', json.token);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "  if (json.expiresInMinutes) pm.collectionVariables.set('expiresInMinutes', String(json.expiresInMinutes));",
+                  "  if (json.salonId) pm.collectionVariables.set('salonId', json.salonId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{masterEmail}}\",\n  \"password\": \"{{masterPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "login"
+              ]
+            },
+            "description": "Autentica o usuario e salva automaticamente accessToken, refreshToken, expiresInMinutes e salonId quando disponivel."
+          }
+        },
+        {
+          "name": "Refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) pm.collectionVariables.set('accessToken', json.token);",
+                  "  if (json.refreshToken) pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "  if (json.expiresInMinutes) pm.collectionVariables.set('expiresInMinutes', String(json.expiresInMinutes));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "refresh"
+              ]
+            },
+            "description": "Troca o refresh token atual por um novo accessToken e um novo refreshToken."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "logout"
+              ]
+            },
+            "description": "Revoga o refresh token atual. Apos logout, o refresh nao deve mais funcionar."
+          }
+        },
+        {
+          "name": "Register Client",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Exemplo\",\n  \"email\": \"cliente@alyup.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Auth/registerClient",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Auth",
+                "registerClient"
+              ]
+            },
+            "description": "Cadastro publico de cliente. Nao requer JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Register Salon Owner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Salon Owner\",\n  \"email\": \"owner@alyup.com\",\n  \"password\": \"Password123!\",\n  \"salonName\": \"AlyUp Salon\",\n  \"salonDocument\": \"12345678901234\",\n  \"salonAddress\": \"Rua Central, 100\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Admin/registerSalonOwner",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Admin",
+                "registerSalonOwner"
+              ]
+            },
+            "description": "Requer token com role explicita Master."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Salon",
+      "item": [
+        {
+          "name": "Create Professional As SalonOwner",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Professional One\",\n  \"email\": \"professional@alyup.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Salon/createProfessionals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Salon",
+                "createProfessionals"
+              ]
+            },
+            "description": "Use com token de SalonOwner. O salonId vem do token e nao deve ser enviado no body."
+          }
+        },
+        {
+          "name": "Create Professional As Master",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Professional Master\",\n  \"email\": \"professional.master@alyup.com\",\n  \"password\": \"Password123!\",\n  \"salonId\": \"{{salonId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/Salon/createProfessionals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Salon",
+                "createProfessionals"
+              ]
+            },
+            "description": "Use com token de Master. Nesse caso o salonId precisa ser informado no body."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Professional",
+      "item": [
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Professional/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Professional",
+                "me"
+              ]
+            },
+            "description": "Retorna o perfil do profissional autenticado. Requer role Professional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "Create Service As SalonOwner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.id) pm.collectionVariables.set('serviceId', json.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Corte Masculino\",\n  \"description\": \"Corte tradicional com acabamento.\",\n  \"durationInMinutes\": 45,\n  \"price\": 59.90\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "services"
+              ]
+            },
+            "description": "Cria um serviço usando o salão do token do SalonOwner."
+          }
+        },
+        {
+          "name": "Create Service As Master",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.id) pm.collectionVariables.set('serviceId', json.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Escova\",\n  \"description\": \"Escova modelada.\",\n  \"durationInMinutes\": 30,\n  \"price\": 40.00,\n  \"salonId\": \"{{salonId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "services"
+              ]
+            },
+            "description": "Cria um serviço como Master informando explicitamente o salão."
+          }
+        },
+        {
+          "name": "List Services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/services?salonId={{salonId}}&includeInactive=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "salonId",
+                  "value": "{{salonId}}"
+                },
+                {
+                  "key": "includeInactive",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Lista serviços. Para Client e Master, informe salonId. Para SalonOwner e Professional, o escopo do token será usado."
+          }
+        },
+        {
+          "name": "Get Service By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "services",
+                "{{serviceId}}"
+              ]
+            },
+            "description": "Busca um serviço específico pelo identificador."
+          }
+        },
+        {
+          "name": "Update Service",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Corte Masculino Premium\",\n  \"description\": \"Corte com lavagem e finalização.\",\n  \"durationInMinutes\": 60,\n  \"price\": 79.90\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "services",
+                "{{serviceId}}"
+              ]
+            },
+            "description": "Atualiza um serviço existente. Permitido para SalonOwner do próprio salão ou Master."
+          }
+        },
+        {
+          "name": "Delete Service",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "services",
+                "{{serviceId}}"
+              ]
+            },
+            "description": "Soft delete do serviço. O registro permanece na base com IsActive = false."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Professional Availability",
+      "item": [
+        {
+          "name": "Create Availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.id) pm.collectionVariables.set('availabilityId', json.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"09:00:00\",\n  \"endTime\": \"18:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/professionals/{{professionalId}}/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "professionals",
+                "{{professionalId}}",
+                "availability"
+              ]
+            },
+            "description": "Cria uma disponibilidade para o profissional informado. Permitido para Master ou SalonOwner do mesmo salão."
+          }
+        },
+        {
+          "name": "List Availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/professionals/{{professionalId}}/availability?includeInactive=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "professionals",
+                "{{professionalId}}",
+                "availability"
+              ],
+              "query": [
+                {
+                  "key": "includeInactive",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Lista disponibilidades do profissional. Professional só pode ver a própria; Client vê apenas ativas."
+          }
+        },
+        {
+          "name": "Update Availability",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"10:00:00\",\n  \"endTime\": \"19:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/professionals/{{professionalId}}/availability/{{availabilityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "professionals",
+                "{{professionalId}}",
+                "availability",
+                "{{availabilityId}}"
+              ]
+            },
+            "description": "Atualiza uma disponibilidade existente do profissional."
+          }
+        },
+        {
+          "name": "Delete Availability",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/professionals/{{professionalId}}/availability/{{availabilityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "professionals",
+                "{{professionalId}}",
+                "availability",
+                "{{availabilityId}}"
+              ]
+            },
+            "description": "Soft delete da disponibilidade. O registro permanece com IsActive = false."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Client",
+      "item": [
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/Client/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Client",
+                "me"
+              ]
+            },
+            "description": "Retorna o perfil do cliente autenticado. Requer role Client."
+          }
+        }
+      ]
+    }
+  ]
+}

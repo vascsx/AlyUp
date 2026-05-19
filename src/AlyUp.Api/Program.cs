@@ -1,9 +1,13 @@
 using AlyUp.Api.Filters;
 using AlyUp.Application.DTOs.Auth;
+using AlyUp.Application.DTOs.ProfessionalAvailability;
+using AlyUp.Application.DTOs.Services;
 using AlyUp.Application.Interfaces;
 using AlyUp.Application.UseCases.Admin;
 using AlyUp.Application.UseCases.Auth;
+using AlyUp.Application.UseCases.ProfessionalAvailability;
 using AlyUp.Application.UseCases.Salon;
+using AlyUp.Application.UseCases.Services;
 using AlyUp.Application.Validators;
 using AlyUp.Infrastructure.Data;
 using AlyUp.Infrastructure.Extensions;
@@ -59,6 +63,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ISalonRepository, SalonRepository>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
+builder.Services.AddScoped<IServiceRepository, ServiceRepository>();
+builder.Services.AddScoped<IProfessionalAvailabilityRepository, ProfessionalAvailabilityRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IRefreshTokenHasher, Sha256RefreshTokenHasher>();
@@ -77,6 +83,10 @@ builder.Services.AddScoped<IValidator<LoginRequestDto>, LoginRequestDtoValidator
 builder.Services.AddScoped<IValidator<RegisterClientRequestDto>, RegisterClientRequestDtoValidator>();
 builder.Services.AddScoped<IValidator<CreateSalonOwnerRequestDto>, CreateSalonOwnerRequestDtoValidator>();
 builder.Services.AddScoped<IValidator<CreateProfessionalRequestDto>, CreateProfessionalRequestDtoValidator>();
+builder.Services.AddScoped<IValidator<CreateServiceRequestDto>, CreateServiceRequestDtoValidator>();
+builder.Services.AddScoped<IValidator<UpdateServiceRequestDto>, UpdateServiceRequestDtoValidator>();
+builder.Services.AddScoped<IValidator<CreateProfessionalAvailabilityRequestDto>, CreateProfessionalAvailabilityRequestDtoValidator>();
+builder.Services.AddScoped<IValidator<UpdateProfessionalAvailabilityRequestDto>, UpdateProfessionalAvailabilityRequestDtoValidator>();
 builder.Services.AddScoped<IValidator<RefreshTokenRequestDto>, RefreshTokenRequestDtoValidator>();
 builder.Services.AddScoped<IValidator<LogoutRequestDto>, LogoutRequestDtoValidator>();
 
@@ -87,6 +97,15 @@ builder.Services.AddScoped<RegisterClientUseCase>();
 builder.Services.AddScoped<GetCurrentUserProfileUseCase>();
 builder.Services.AddScoped<CreateSalonOwnerUseCase>();
 builder.Services.AddScoped<CreateProfessionalUseCase>();
+builder.Services.AddScoped<CreateServiceUseCase>();
+builder.Services.AddScoped<ListServicesUseCase>();
+builder.Services.AddScoped<GetServiceByIdUseCase>();
+builder.Services.AddScoped<UpdateServiceUseCase>();
+builder.Services.AddScoped<DeleteServiceUseCase>();
+builder.Services.AddScoped<CreateProfessionalAvailabilityUseCase>();
+builder.Services.AddScoped<ListProfessionalAvailabilityUseCase>();
+builder.Services.AddScoped<UpdateProfessionalAvailabilityUseCase>();
+builder.Services.AddScoped<DeleteProfessionalAvailabilityUseCase>();
 
 var app = builder.Build();
 
