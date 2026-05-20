@@ -1,5 +1,6 @@
 using AlyUp.Application.DTOs.Auth;
 using FluentValidation;
+using System.Text.RegularExpressions;
 
 namespace AlyUp.Application.Validators;
 
@@ -20,7 +21,7 @@ public class RegisterClientRequestDtoValidator : AbstractValidator<RegisterClien
             .NotEmpty().WithMessage("E-mail é obrigatório.")
             .Must(email => !string.IsNullOrWhiteSpace(email))
             .WithMessage("E-mail não pode conter apenas espaços em branco.")
-            .EmailAddress().WithMessage("E-mail inválido.")
+            .Must(BeValidEmail).WithMessage("E-mail inválido.")
             .MaximumLength(150)
             .WithMessage("O e-mail deve ter no máximo 150 caracteres.");
 
@@ -31,5 +32,10 @@ public class RegisterClientRequestDtoValidator : AbstractValidator<RegisterClien
             .WithMessage("Senha não pode conter apenas espaços em branco.")
             .Matches(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$")
             .WithMessage("A senha deve ter ao menos 8 caracteres, letra maiúscula, letra minúscula, número e símbolo.");
+    }
+
+    private static bool BeValidEmail(string email)
+    {
+        return Regex.IsMatch(email.Trim(), @"^[^@\s]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$");
     }
 }

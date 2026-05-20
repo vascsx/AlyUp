@@ -9,6 +9,7 @@ public class Salon
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; } = null;
     public ICollection<User> Users { get; set; } = new List<User>();
+    public ICollection<Professional> Professionals { get; set; } = new List<Professional>();
     public ICollection<Client> Clients { get; set; } = new List<Client>();
     public ICollection<Service> Services { get; set; } = new List<Service>();
     public ICollection<ProfessionalAvailability> ProfessionalAvailabilities { get; set; } = new List<ProfessionalAvailability>();

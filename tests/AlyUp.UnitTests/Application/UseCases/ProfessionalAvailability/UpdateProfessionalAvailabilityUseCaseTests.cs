@@ -11,7 +11,7 @@ namespace AlyUp.UnitTests.Application.UseCases.ProfessionalAvailability;
 public class UpdateProfessionalAvailabilityUseCaseTests
 {
     private readonly Mock<IProfessionalAvailabilityRepository> _availabilityRepositoryMock = new();
-    private readonly Mock<IUserRepository> _userRepositoryMock = new();
+    private readonly Mock<IProfessionalRepository> _professionalRepositoryMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly UpdateProfessionalAvailabilityUseCase _sut;
 
@@ -19,12 +19,12 @@ public class UpdateProfessionalAvailabilityUseCaseTests
     {
         _sut = new UpdateProfessionalAvailabilityUseCase(
             _availabilityRepositoryMock.Object,
-            _userRepositoryMock.Object,
+            _professionalRepositoryMock.Object,
             _currentUserServiceMock.Object);
     }
 
     [Fact]
-    public async Task Should_ReturnFailure_When_ProfessionalDoesNotBelongToOwnersSalon()
+    public async Task Should_ReturnFailure_When_ProfessionalBelongsToAnotherSalon()
     {
         var ownerSalonId = Guid.NewGuid();
         var professionalSalonId = Guid.NewGuid();
@@ -35,13 +35,13 @@ public class UpdateProfessionalAvailabilityUseCaseTests
         _currentUserServiceMock.Setup(service => service.IsInRole(UserRole.Master)).Returns(false);
         _currentUserServiceMock.Setup(service => service.IsInRole(UserRole.SalonOwner)).Returns(true);
         _currentUserServiceMock.SetupGet(service => service.SalonId).Returns(ownerSalonId);
-        _userRepositoryMock
+        _professionalRepositoryMock
             .Setup(repository => repository.GetByIdAsync(professionalId))
-            .ReturnsAsync(new User
+            .ReturnsAsync(new Professional
             {
                 Id = professionalId,
-                Role = UserRole.Professional,
-                SalonId = professionalSalonId
+                SalonId = professionalSalonId,
+                IsActive = true
             });
 
         var result = await _sut.ExecuteAsync(professionalId, availabilityId, request);
@@ -51,7 +51,7 @@ public class UpdateProfessionalAvailabilityUseCaseTests
     }
 
     [Fact]
-    public async Task Should_ReturnFailure_When_UpdateCreatesOverlap()
+    public async Task Should_UpdateAvailability_When_RequestIsValid()
     {
         var salonId = Guid.NewGuid();
         var professionalId = Guid.NewGuid();
@@ -59,13 +59,13 @@ public class UpdateProfessionalAvailabilityUseCaseTests
         var request = new UpdateProfessionalAvailabilityRequestDto(DayOfWeek.Friday, new TimeOnly(13, 0), new TimeOnly(18, 0));
 
         _currentUserServiceMock.Setup(service => service.IsInRole(UserRole.Master)).Returns(true);
-        _userRepositoryMock
+        _professionalRepositoryMock
             .Setup(repository => repository.GetByIdAsync(professionalId))
-            .ReturnsAsync(new User
+            .ReturnsAsync(new Professional
             {
                 Id = professionalId,
-                Role = UserRole.Professional,
-                SalonId = salonId
+                SalonId = salonId,
+                IsActive = true
             });
         _availabilityRepositoryMock
             .Setup(repository => repository.GetByIdAsync(availabilityId, false))
@@ -74,8 +74,8 @@ public class UpdateProfessionalAvailabilityUseCaseTests
                 Id = availabilityId,
                 ProfessionalId = professionalId,
                 SalonId = salonId,
-                DayOfWeek = DayOfWeek.Friday,
-                StartTime = new TimeOnly(8, 0),
+                DayOfWeek = DayOfWeek.Monday,
+                StartTime = new TimeOnly(9, 0),
                 EndTime = new TimeOnly(12, 0),
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -85,12 +85,20 @@ public class UpdateProfessionalAvailabilityUseCaseTests
             .ReturnsAsync(false);
         _availabilityRepositoryMock
             .Setup(repository => repository.HasOverlapAsync(professionalId, DayOfWeek.Friday, new TimeOnly(13, 0), new TimeOnly(18, 0), availabilityId, false))
-            .ReturnsAsync(true);
+            .ReturnsAsync(false);
 
         var result = await _sut.ExecuteAsync(professionalId, availabilityId, request);
 
-        result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("Já existe uma disponibilidade com conflito de horário para este profissional.");
-        _availabilityRepositoryMock.Verify(repository => repository.UpdateAsync(It.IsAny<AlyUp.Domain.Entities.ProfessionalAvailability>()), Times.Never);
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.DayOfWeek.Should().Be(DayOfWeek.Friday);
+        result.Value.StartTime.Should().Be(new TimeOnly(13, 0));
+        result.Value.EndTime.Should().Be(new TimeOnly(18, 0));
+
+        _availabilityRepositoryMock.Verify(repository => repository.UpdateAsync(It.Is<AlyUp.Domain.Entities.ProfessionalAvailability>(availability =>
+            availability.Id == availabilityId &&
+            availability.DayOfWeek == DayOfWeek.Friday &&
+            availability.StartTime == new TimeOnly(13, 0) &&
+            availability.EndTime == new TimeOnly(18, 0))), Times.Once);
     }
 }

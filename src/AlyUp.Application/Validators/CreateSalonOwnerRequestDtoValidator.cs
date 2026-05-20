@@ -19,7 +19,7 @@ public class CreateSalonOwnerRequestDtoValidator : AbstractValidator<CreateSalon
             .NotEmpty().WithMessage("E-mail é obrigatório.")
             .Must(email => !string.IsNullOrWhiteSpace(email))
             .WithMessage("E-mail não pode conter apenas espaços em branco.")
-            .EmailAddress().WithMessage("E-mail inválido.");
+            .Must(BeValidEmail).WithMessage("E-mail inválido.");
 
         RuleFor(x => x.Password)
             .Cascade(CascadeMode.Stop)
@@ -125,5 +125,10 @@ public class CreateSalonOwnerRequestDtoValidator : AbstractValidator<CreateSalon
 
         var remainder = sum % 11;
         return remainder < 2 ? 0 : 11 - remainder;
+    }
+
+    private static bool BeValidEmail(string email)
+    {
+        return Regex.IsMatch(email.Trim(), @"^[^@\s]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$");
     }
 }

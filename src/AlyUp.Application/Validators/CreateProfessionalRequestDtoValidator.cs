@@ -1,5 +1,6 @@
 using AlyUp.Application.DTOs.Auth;
 using FluentValidation;
+using System.Text.RegularExpressions;
 
 namespace AlyUp.Application.Validators;
 
@@ -20,7 +21,7 @@ public class CreateProfessionalRequestDtoValidator : AbstractValidator<CreatePro
             .NotEmpty().WithMessage("E-mail é obrigatório.")
             .Must(email => !string.IsNullOrWhiteSpace(email))
             .WithMessage("E-mail não pode conter apenas espaços em branco.")
-            .EmailAddress().WithMessage("E-mail inválido.")
+            .Must(BeValidEmail).WithMessage("E-mail inválido.")
             .MaximumLength(150)
             .WithMessage("O e-mail deve ter no máximo 150 caracteres.");
 
@@ -32,10 +33,100 @@ public class CreateProfessionalRequestDtoValidator : AbstractValidator<CreatePro
             .Matches(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$")
             .WithMessage("A senha deve ter ao menos 8 caracteres, letra maiúscula, letra minúscula, número e símbolo.");
 
+        RuleFor(x => x.Document)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty().WithMessage("Documento é obrigatório.")
+            .Must(document => !string.IsNullOrWhiteSpace(document))
+            .WithMessage("Documento não pode conter apenas espaços em branco.")
+            .Must(BeValidCpfOrCnpj)
+            .WithMessage("Documento deve ser um CPF ou CNPJ válido.");
+
         RuleFor(x => x.SalonId)
             .Cascade(CascadeMode.Stop)
             .NotEqual(Guid.Empty)
             .WithMessage("O identificador do salão é inválido.")
             .When(x => x.SalonId.HasValue);
+    }
+
+    private static bool BeValidEmail(string email)
+    {
+        return Regex.IsMatch(email.Trim(), @"^[^@\s]+@([A-Za-z0-9-]+\.)+[A-Za-z]{2,}$");
+    }
+
+    private static bool BeValidCpfOrCnpj(string document)
+    {
+        var digits = Regex.Replace(document, "\\D", string.Empty);
+
+        return digits.Length switch
+        {
+            11 => IsValidCpf(digits),
+            14 => IsValidCnpj(digits),
+            _ => false
+        };
+    }
+
+    private static bool IsValidCpf(string cpf)
+    {
+        if (cpf.Distinct().Count() == 1)
+        {
+            return false;
+        }
+
+        var numbers = cpf.Select(c => c - '0').ToArray();
+
+        var firstDigit = CalculateCpfDigit(numbers, 9, 10);
+        if (numbers[9] != firstDigit)
+        {
+            return false;
+        }
+
+        var secondDigit = CalculateCpfDigit(numbers, 10, 11);
+        return numbers[10] == secondDigit;
+    }
+
+    private static int CalculateCpfDigit(int[] numbers, int length, int initialWeight)
+    {
+        var sum = 0;
+        for (var i = 0; i < length; i++)
+        {
+            sum += numbers[i] * (initialWeight - i);
+        }
+
+        var remainder = sum % 11;
+        return remainder < 2 ? 0 : 11 - remainder;
+    }
+
+    private static bool IsValidCnpj(string cnpj)
+    {
+        if (cnpj.Distinct().Count() == 1)
+        {
+            return false;
+        }
+
+        var numbers = cnpj.Select(c => c - '0').ToArray();
+
+        var firstWeights = new[] { 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2 };
+        var secondWeights = new[] { 6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2 };
+
+        var firstDigit = CalculateCnpjDigit(numbers, firstWeights);
+        if (numbers[12] != firstDigit)
+        {
+            return false;
+        }
+
+        var secondDigit = CalculateCnpjDigit(numbers, secondWeights);
+        return numbers[13] == secondDigit;
+    }
+
+    private static int CalculateCnpjDigit(int[] numbers, int[] weights)
+    {
+        var sum = 0;
+        for (var i = 0; i < weights.Length; i++)
+        {
+            sum += numbers[i] * weights[i];
+        }
+
+        var remainder = sum % 11;
+        return remainder < 2 ? 0 : 11 - remainder;
     }
 }

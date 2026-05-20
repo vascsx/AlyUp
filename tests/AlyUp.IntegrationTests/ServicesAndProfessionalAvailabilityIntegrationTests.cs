@@ -243,6 +243,14 @@ public class ServicesAndProfessionalAvailabilityIntegrationTests : IClassFixture
                 Role = UserRole.Professional,
                 SalonId = salonId,
                 IsActive = true
+            },
+            new Professional
+            {
+                Id = professionalId,
+                SalonId = salonId,
+                Name = "Professional",
+                Email = "pro.availability@email.com",
+                IsActive = true
             });
 
         var token = _factory.CreateToken(ownerUserId, UserRole.SalonOwner.ToString(), salonId: salonId);
@@ -302,6 +310,14 @@ public class ServicesAndProfessionalAvailabilityIntegrationTests : IClassFixture
                 Role = UserRole.Professional,
                 SalonId = otherSalonId,
                 IsActive = true
+            },
+            new Professional
+            {
+                Id = otherProfessionalId,
+                SalonId = otherSalonId,
+                Name = "Professional Other",
+                Email = "pro.other@email.com",
+                IsActive = true
             });
 
         var token = _factory.CreateToken(ownerUserId, UserRole.SalonOwner.ToString(), salonId: ownerSalonId);
@@ -314,7 +330,7 @@ public class ServicesAndProfessionalAvailabilityIntegrationTests : IClassFixture
             endTime = new TimeOnly(12, 0)
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -338,6 +354,14 @@ public class ServicesAndProfessionalAvailabilityIntegrationTests : IClassFixture
                 SalonId = salonId,
                 IsActive = true
             },
+            new Professional
+            {
+                Id = professionalAId,
+                SalonId = salonId,
+                Name = "Professional A",
+                Email = "pro.a@email.com",
+                IsActive = true
+            },
             new User
             {
                 Id = professionalBId,
@@ -346,6 +370,14 @@ public class ServicesAndProfessionalAvailabilityIntegrationTests : IClassFixture
                 PasswordHash = "hash",
                 Role = UserRole.Professional,
                 SalonId = salonId,
+                IsActive = true
+            },
+            new Professional
+            {
+                Id = professionalBId,
+                SalonId = salonId,
+                Name = "Professional B",
+                Email = "pro.b@email.com",
                 IsActive = true
             });
 

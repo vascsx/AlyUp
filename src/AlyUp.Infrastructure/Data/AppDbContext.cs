@@ -1,8 +1,8 @@
-using AlyUp.Domain.Entities;
 using AlyUp.Application.Interfaces;
-using System.Globalization;
+using AlyUp.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using System.Globalization;
 
 namespace AlyUp.Infrastructure.Data;
 
@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Client> Clients => Set<Client>();
+    public DbSet<Professional> Professionals => Set<Professional>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<ProfessionalAvailability> ProfessionalAvailabilities => Set<ProfessionalAvailability>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
@@ -33,6 +34,7 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureClient(modelBuilder);
+        ConfigureProfessional(modelBuilder);
         ConfigureUser(modelBuilder);
         ConfigureSalon(modelBuilder);
         ConfigureService(modelBuilder);
@@ -76,6 +78,9 @@ public class AppDbContext : DbContext
     private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Client>()
+            .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
+
+        modelBuilder.Entity<Professional>()
             .HasQueryFilter(entity => !ShouldApplyTenantFilter || entity.SalonId == TenantSalonId);
 
         modelBuilder.Entity<Service>()
@@ -126,6 +131,29 @@ public class AppDbContext : DbContext
             .HasOne(c => c.Salon)
             .WithMany(s => s.Clients)
             .HasForeignKey(c => c.SalonId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    private static void ConfigureProfessional(ModelBuilder modelBuilder)
+    {
+        var builder = modelBuilder.Entity<Professional>();
+        builder.ToTable("professionals");
+        builder.HasKey(professional => professional.Id);
+        builder.Property(professional => professional.Name).IsRequired().HasMaxLength(150);
+        builder.Property(professional => professional.Email).IsRequired().HasMaxLength(150);
+        builder.Property(professional => professional.Document).IsRequired().HasMaxLength(20);
+        builder.HasIndex(professional => professional.Email).IsUnique();
+        builder.Property(professional => professional.IsActive).IsRequired();
+        builder.Property(professional => professional.CreatedAt).IsRequired();
+
+        builder.HasOne(professional => professional.User)
+            .WithOne()
+            .HasForeignKey<Professional>(professional => professional.Id)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(professional => professional.Salon)
+            .WithMany(salon => salon.Professionals)
+            .HasForeignKey(professional => professional.SalonId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 
@@ -189,7 +217,7 @@ public class AppDbContext : DbContext
         builder.HasIndex(availability => availability.SalonId);
 
         builder.HasOne(availability => availability.Professional)
-            .WithMany(user => user.ProfessionalAvailabilities)
+            .WithMany(professional => professional.ProfessionalAvailabilities)
             .HasForeignKey(availability => availability.ProfessionalId)
             .OnDelete(DeleteBehavior.Cascade);
 

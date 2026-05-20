@@ -9,16 +9,16 @@ namespace AlyUp.Application.UseCases.ProfessionalAvailability;
 public class CreateProfessionalAvailabilityUseCase
 {
     private readonly IProfessionalAvailabilityRepository _availabilityRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IProfessionalRepository _professionalRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public CreateProfessionalAvailabilityUseCase(
         IProfessionalAvailabilityRepository availabilityRepository,
-        IUserRepository userRepository,
+        IProfessionalRepository professionalRepository,
         ICurrentUserService currentUserService)
     {
         _availabilityRepository = availabilityRepository;
-        _userRepository = userRepository;
+        _professionalRepository = professionalRepository;
         _currentUserService = currentUserService;
     }
 
@@ -63,7 +63,7 @@ public class CreateProfessionalAvailabilityUseCase
         {
             Id = Guid.NewGuid(),
             ProfessionalId = professional.Id,
-            SalonId = professional.SalonId!.Value,
+            SalonId = professional.SalonId,
             DayOfWeek = request.DayOfWeek,
             StartTime = request.StartTime,
             EndTime = request.EndTime,
@@ -76,20 +76,20 @@ public class CreateProfessionalAvailabilityUseCase
         return Result<ProfessionalAvailabilityResponseDto>.Success(Map(availability));
     }
 
-    private async Task<Result<User>> GetProfessionalAsync(Guid professionalId)
+    private async Task<Result<Professional>> GetProfessionalAsync(Guid professionalId)
     {
-        var professional = await _userRepository.GetByIdAsync(professionalId);
-        if (professional is null || professional.Role != UserRole.Professional || !professional.SalonId.HasValue)
+        var professional = await _professionalRepository.GetByIdAsync(professionalId);
+        if (professional is null || !professional.IsActive)
         {
-            return Result<User>.Failure("O profissional informado não foi encontrado.");
+            return Result<Professional>.Failure("O profissional informado não foi encontrado.");
         }
 
         if (_currentUserService.IsInRole(UserRole.SalonOwner) && _currentUserService.SalonId != professional.SalonId)
         {
-            return Result<User>.Failure("O profissional informado não pertence ao salão do usuário autenticado.");
+            return Result<Professional>.Failure("O profissional informado não pertence ao salão do usuário autenticado.");
         }
 
-        return Result<User>.Success(professional);
+        return Result<Professional>.Success(professional);
     }
 
     private static ProfessionalAvailabilityResponseDto Map(AlyUp.Domain.Entities.ProfessionalAvailability availability) =>

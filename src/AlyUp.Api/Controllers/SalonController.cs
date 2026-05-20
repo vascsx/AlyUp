@@ -1,7 +1,7 @@
 using AlyUp.Application.DTOs.Auth;
 using AlyUp.Application.Interfaces;
 using AlyUp.Application.Security;
-using AlyUp.Application.UseCases.Salon;
+using AlyUp.Application.UseCases.Professionals;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -46,8 +46,9 @@ public class SalonController : ControllerBase
             });
         }
 
-        return Ok(new
+        return Created(string.Empty, new
         {
+            id = result.Value,
             message = "Profissional cadastrado com sucesso."
         });
     }

@@ -1,4 +1,4 @@
-﻿using AlyUp.Domain.Enums;
+using AlyUp.Domain.Enums;
 using System.Collections.Generic;
 
 namespace AlyUp.Domain.Entities;
@@ -19,5 +19,4 @@ public class User
     public DateTime? UpdatedAt { get; set; } = null;
 
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
-    public virtual ICollection<ProfessionalAvailability> ProfessionalAvailabilities { get; set; } = new List<ProfessionalAvailability>();
 }

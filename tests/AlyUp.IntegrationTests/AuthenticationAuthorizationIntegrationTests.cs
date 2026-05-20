@@ -538,6 +538,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             name = "Professional One",
             email = "professional@email.com",
             password = "Password123!",
+            document = "529.982.247-25",
             salonId = otherSalonId
         });
 
@@ -549,6 +550,10 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             user.Email == "professional@email.com" &&
             user.Role == UserRole.Professional &&
             user.SalonId == ownerSalonId);
+        dbContext.Professionals.Should().Contain(professional =>
+            professional.Email == "professional@email.com" &&
+            professional.Document == "52998224725" &&
+            professional.SalonId == ownerSalonId);
     }
 
     [Fact]
@@ -578,10 +583,18 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             name = "Professional Master",
             email = "professional.master@email.com",
             password = "Password123!",
+            document = "12.345.678/0001-95",
             salonId
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        dbContext.Professionals.Should().Contain(professional =>
+            professional.Email == "professional.master@email.com" &&
+            professional.Document == "12345678000195" &&
+            professional.SalonId == salonId);
     }
 
     [Fact]
@@ -608,6 +621,8 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
             name = "Professional Master",
             email = "professional.master@email.com",
             password = "Password123!"
+            ,
+            document = "52998224725"
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -636,7 +651,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
         var token = _factory.CreateToken(professionalUserId, UserRole.Professional.ToString(), salonId);
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/api/Professional/me");
+        var response = await _client.GetAsync("/api/professionals/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -679,7 +694,7 @@ public class AuthenticationAuthorizationIntegrationTests : IClassFixture<TestWeb
     [Theory]
     [InlineData("/api/Admin/registerSalonOwner")]
     [InlineData("/api/Salon/createProfessionals")]
-    [InlineData("/api/Professional/me")]
+    [InlineData("/api/professionals/me")]
     public async Task Client_Should_NotAccess_PrivilegedEndpoints(string url)
     {
         await _factory.ResetDatabaseAsync();

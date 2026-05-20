@@ -5,7 +5,7 @@ public class ProfessionalAvailability : ISalonScopedEntity
     public Guid Id { get; set; }
 
     public Guid ProfessionalId { get; set; }
-    public User Professional { get; set; } = null!;
+    public Professional Professional { get; set; } = null!;
 
     public Guid SalonId { get; set; }
     public Salon Salon { get; set; } = null!;

@@ -11,7 +11,7 @@ namespace AlyUp.UnitTests.Application.UseCases.ProfessionalAvailability;
 public class CreateProfessionalAvailabilityUseCaseTests
 {
     private readonly Mock<IProfessionalAvailabilityRepository> _availabilityRepositoryMock = new();
-    private readonly Mock<IUserRepository> _userRepositoryMock = new();
+    private readonly Mock<IProfessionalRepository> _professionalRepositoryMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly CreateProfessionalAvailabilityUseCase _sut;
 
@@ -19,7 +19,7 @@ public class CreateProfessionalAvailabilityUseCaseTests
     {
         _sut = new CreateProfessionalAvailabilityUseCase(
             _availabilityRepositoryMock.Object,
-            _userRepositoryMock.Object,
+            _professionalRepositoryMock.Object,
             _currentUserServiceMock.Object);
     }
 
@@ -33,13 +33,13 @@ public class CreateProfessionalAvailabilityUseCaseTests
         _currentUserServiceMock.Setup(service => service.IsInRole(UserRole.Master)).Returns(false);
         _currentUserServiceMock.Setup(service => service.IsInRole(UserRole.SalonOwner)).Returns(true);
         _currentUserServiceMock.SetupGet(service => service.SalonId).Returns(salonId);
-        _userRepositoryMock
+        _professionalRepositoryMock
             .Setup(repository => repository.GetByIdAsync(professionalId))
-            .ReturnsAsync(new User
+            .ReturnsAsync(new Professional
             {
                 Id = professionalId,
-                Role = UserRole.Professional,
-                SalonId = salonId
+                SalonId = salonId,
+                IsActive = true
             });
         _availabilityRepositoryMock
             .Setup(repository => repository.ExistsExactAsync(professionalId, DayOfWeek.Monday, new TimeOnly(9, 0), new TimeOnly(12, 0), null, false))
@@ -69,13 +69,13 @@ public class CreateProfessionalAvailabilityUseCaseTests
         var request = new CreateProfessionalAvailabilityRequestDto(DayOfWeek.Monday, new TimeOnly(9, 0), new TimeOnly(12, 0));
 
         _currentUserServiceMock.Setup(service => service.IsInRole(UserRole.Master)).Returns(true);
-        _userRepositoryMock
+        _professionalRepositoryMock
             .Setup(repository => repository.GetByIdAsync(professionalId))
-            .ReturnsAsync(new User
+            .ReturnsAsync(new Professional
             {
                 Id = professionalId,
-                Role = UserRole.Professional,
-                SalonId = salonId
+                SalonId = salonId,
+                IsActive = true
             });
         _availabilityRepositoryMock
             .Setup(repository => repository.ExistsExactAsync(professionalId, DayOfWeek.Monday, new TimeOnly(9, 0), new TimeOnly(12, 0), null, false))

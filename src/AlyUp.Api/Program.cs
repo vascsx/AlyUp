@@ -6,7 +6,7 @@ using AlyUp.Application.Interfaces;
 using AlyUp.Application.UseCases.Admin;
 using AlyUp.Application.UseCases.Auth;
 using AlyUp.Application.UseCases.ProfessionalAvailability;
-using AlyUp.Application.UseCases.Salon;
+using AlyUp.Application.UseCases.Professionals;
 using AlyUp.Application.UseCases.Services;
 using AlyUp.Application.Validators;
 using AlyUp.Infrastructure.Data;
@@ -61,6 +61,7 @@ builder.Services.AddAppRateLimiting();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IProfessionalRepository, ProfessionalRepository>();
 builder.Services.AddScoped<ISalonRepository, SalonRepository>();
 builder.Services.AddScoped<IClientRepository, ClientRepository>();
 builder.Services.AddScoped<IServiceRepository, ServiceRepository>();

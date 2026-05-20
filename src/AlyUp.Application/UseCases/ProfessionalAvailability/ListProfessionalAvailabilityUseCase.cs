@@ -8,23 +8,23 @@ namespace AlyUp.Application.UseCases.ProfessionalAvailability;
 public class ListProfessionalAvailabilityUseCase
 {
     private readonly IProfessionalAvailabilityRepository _availabilityRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IProfessionalRepository _professionalRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public ListProfessionalAvailabilityUseCase(
         IProfessionalAvailabilityRepository availabilityRepository,
-        IUserRepository userRepository,
+        IProfessionalRepository professionalRepository,
         ICurrentUserService currentUserService)
     {
         _availabilityRepository = availabilityRepository;
-        _userRepository = userRepository;
+        _professionalRepository = professionalRepository;
         _currentUserService = currentUserService;
     }
 
     public async Task<Result<IReadOnlyCollection<ProfessionalAvailabilityResponseDto>>> ExecuteAsync(Guid professionalId, bool includeInactive)
     {
-        var professional = await _userRepository.GetByIdAsync(professionalId);
-        if (professional is null || professional.Role != UserRole.Professional || !professional.SalonId.HasValue)
+        var professional = await _professionalRepository.GetByIdAsync(professionalId);
+        if (professional is null || !professional.IsActive)
         {
             return Result<IReadOnlyCollection<ProfessionalAvailabilityResponseDto>>.Failure("O profissional informado não foi encontrado.");
         }
